@@ -30,7 +30,7 @@ object AlertDialog {
                 .widgetColor(accentColor)
                 .theme(
                     activity
-                        .appTheme
+                        .getAppTheme()
                         .materialDialogTheme,
                 )
                 .title(title)

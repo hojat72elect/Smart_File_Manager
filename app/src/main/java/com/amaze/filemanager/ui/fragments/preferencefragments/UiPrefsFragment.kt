@@ -56,7 +56,7 @@ class UiPrefsFragment : BasePrefsFragment() {
             onPreferenceClickListener =
                 Preference.OnPreferenceClickListener {
                     MaterialDialog.Builder(activity).apply {
-                        theme(activity.utilsProvider.appTheme.materialDialogTheme)
+                        theme(activity.getUtilsProvider().appTheme.materialDialogTheme)
                         title(R.string.preference_language_dialog_title)
                         items(
                             arrayOf(getString(R.string.preference_language_system_default))
@@ -87,7 +87,7 @@ class UiPrefsFragment : BasePrefsFragment() {
             Preference.OnPreferenceClickListener {
                 val dragDialogBuilder = MaterialDialog.Builder(activity)
                 dragDialogBuilder.theme(
-                    activity.utilsProvider.appTheme.materialDialogTheme,
+                    activity.getUtilsProvider().appTheme.materialDialogTheme,
                 )
                 dragDialogBuilder.title(R.string.drag_and_drop_preference)
                 val currentDragPreference: Int =

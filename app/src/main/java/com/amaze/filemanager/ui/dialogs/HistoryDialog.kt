@@ -19,7 +19,7 @@ object HistoryDialog {
         mainFragment: MainFragment,
     ) {
         val sharedPrefs = mainActivity.prefs
-        val appTheme = mainActivity.appTheme
+        val appTheme = mainActivity.getAppTheme()
 
         val adapter =
             HiddenAdapter(

@@ -200,7 +200,7 @@ class MainActivityActionMode(private val mainActivityReference: WeakReference<Ma
                             mainActivity,
                             it,
                             mainActivity.isRootExplorer,
-                            mainActivity.utilsProvider.appTheme,
+                            mainActivity.getUtilsProvider().appTheme,
                         )
                     }
                     mode.finish()
@@ -212,7 +212,7 @@ class MainActivityActionMode(private val mainActivityReference: WeakReference<Ma
                         mainActivity,
                         mainActivity,
                         checkedItems,
-                        mainActivity.utilsProvider.appTheme,
+                        mainActivity.getUtilsProvider().appTheme,
                     )
                     true
                 }
@@ -222,7 +222,7 @@ class MainActivityActionMode(private val mainActivityReference: WeakReference<Ma
                         mainActivity,
                         mainActivity,
                         checkedItems,
-                        mainActivity.utilsProvider.appTheme,
+                        mainActivity.getUtilsProvider().appTheme,
                     )
                     true
                 }
@@ -255,7 +255,7 @@ class MainActivityActionMode(private val mainActivityReference: WeakReference<Ma
                                     FileUtils.shareFiles(
                                         arrayList,
                                         mainActivity,
-                                        mainActivity.utilsProvider.appTheme,
+                                        mainActivity.getUtilsProvider().appTheme,
                                         mainFragmentViewModel.accentColor,
                                     )
                                 }

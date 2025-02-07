@@ -122,20 +122,20 @@ class PreferencesActivity : ThemedActivity(), FolderChooserDialog.FolderCallback
                 window.navigationBarColor = tabStatusColor
             }
 
-            appTheme == AppTheme.BLACK -> {
+            getAppTheme() == AppTheme.BLACK -> {
                 window.navigationBarColor = Color.BLACK
             }
 
-            appTheme == AppTheme.DARK -> {
+            getAppTheme() == AppTheme.DARK -> {
                 window.navigationBarColor = Utils.getColor(this, R.color.holo_dark_background)
             }
 
-            appTheme == AppTheme.LIGHT -> {
+            getAppTheme() == AppTheme.LIGHT -> {
                 window.navigationBarColor = Color.WHITE
             }
         }
 
-        if (appTheme == AppTheme.BLACK) {
+        if (getAppTheme() == AppTheme.BLACK) {
             window.decorView.setBackgroundColor(Utils.getColor(this, android.R.color.black))
         }
     }

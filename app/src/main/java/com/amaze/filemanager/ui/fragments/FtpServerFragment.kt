@@ -388,7 +388,7 @@ class FtpServerFragment : Fragment(R.layout.fragment_ftp) {
                         MaterialDialog.Builder(mainActivity)
                             .content(R.string.ftp_prompt_accept_first_start_saf_access)
                             .widgetColor(accentColor)
-                            .theme(mainActivity.appTheme.materialDialogTheme)
+                            .theme(mainActivity.getAppTheme().materialDialogTheme)
                             .title(R.string.ftp_prompt_accept_first_start_saf_access_title)
                             .positiveText(R.string.ok)
                             .positiveColor(accentColor)
@@ -668,7 +668,7 @@ class FtpServerFragment : Fragment(R.layout.fragment_ftp) {
         val startDividerView = binding.dividerFtpStart
         val statusDividerView = binding.dividerFtpStatus
 
-        when (mainActivity.appTheme) {
+        when (mainActivity.getAppTheme()) {
             AppTheme.LIGHT -> {
                 startDividerView.setBackgroundColor(Utils.getColor(context, R.color.divider))
                 statusDividerView.setBackgroundColor(Utils.getColor(context, R.color.divider))

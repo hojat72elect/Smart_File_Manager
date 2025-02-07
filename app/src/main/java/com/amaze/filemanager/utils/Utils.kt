@@ -264,7 +264,7 @@ object Utils {
         val snackbar =
             Snackbar.make(mainActivity.findViewById(R.id.content_frame), text, length)
                 .setAction(actionTextId) { _: View? -> actionCallback.run() }
-        if (mainActivity.appTheme == AppTheme.LIGHT) {
+        if (mainActivity.getAppTheme() == AppTheme.LIGHT) {
             snackbar
                 .view
                 .setBackgroundColor(mainActivity.resources.getColor(android.R.color.white))

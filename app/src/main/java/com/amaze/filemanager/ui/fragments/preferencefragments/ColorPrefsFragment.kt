@@ -68,7 +68,7 @@ class ColorPrefsFragment : BasePrefsFragment() {
             ColorPickerDialog.newInstance(
                 PreferencesConstants.PRESELECTED_CONFIGS,
                 activity.currentColorPreference,
-                activity.appTheme,
+                activity.getAppTheme(),
             )
         newDialog.setListener {
             val colorPickerPref =
@@ -118,7 +118,7 @@ class ColorPrefsFragment : BasePrefsFragment() {
                     PreferencesConstants.PREFERENCE_ICON_SKIN -> iconSkin = selectedColor
                 }
                 activity
-                    .colorPreference
+                    .getColorPreference()
                     .saveColorPreferences(
                         activity.prefs,
                         UserColorPreferences(primaryFirst, primarySecond, accent, iconSkin),
@@ -139,14 +139,14 @@ class ColorPrefsFragment : BasePrefsFragment() {
             MaterialDialog.Builder(activity)
                 .positiveText(R.string.cancel)
                 .title(R.string.choose_color)
-                .theme(activity.appTheme.materialDialogTheme)
+                .theme(activity.getAppTheme().materialDialogTheme)
                 .autoDismiss(true)
                 .positiveColor(fabSkin)
                 .neutralColor(fabSkin)
                 .neutralText(R.string.default_string)
                 .onNeutral { _, _ ->
                     activity
-                        .colorPreference
+                        .getColorPreference()
                         .saveColorPreferences(activity.prefs, currentColorPreference)
                     activity.recreate()
                 }.customView(v, false)

@@ -36,7 +36,7 @@ class AppearancePrefsFragment : BasePrefsFragment() {
                     editor.putString(PreferencesConstants.FRAGMENT_THEME, which.toString())
                     editor.apply()
 
-                    activity.utilsProvider.themeManager.setAppThemePreference(
+                    activity.getUtilsProvider().themeManager.setAppThemePreference(
                         AppThemePreference.getTheme(which),
                     )
                     activity.recreate()
@@ -55,7 +55,7 @@ class AppearancePrefsFragment : BasePrefsFragment() {
         Preference.OnPreferenceClickListener {
             val dialog =
                 MaterialDialog.Builder(activity).also { builder ->
-                    builder.theme(activity.utilsProvider.appTheme.materialDialogTheme)
+                    builder.theme(activity.getUtilsProvider().appTheme.materialDialogTheme)
                     builder.title(R.string.gridcolumnno)
                     val columnsPreference =
                         activity

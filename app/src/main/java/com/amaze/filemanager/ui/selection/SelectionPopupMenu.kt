@@ -31,7 +31,7 @@ class SelectionPopupMenu(
         ) {
             mainActivity?.also {
                 var currentContext: Context = mainActivity.applicationContext
-                if (mainActivity.appTheme == AppTheme.BLACK) {
+                if (mainActivity.getAppTheme() == AppTheme.BLACK) {
                     currentContext =
                         ContextThemeWrapper(
                             mainActivity.applicationContext,

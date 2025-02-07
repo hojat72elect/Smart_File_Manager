@@ -113,7 +113,7 @@ class AppsRecyclerAdapter(
                 return SpecialViewHolder(
                     fragment.requireContext(),
                     view,
-                    (fragment.requireActivity() as MainActivity).utilsProvider,
+                    (fragment.requireActivity() as MainActivity).getUtilsProvider(),
                     if (viewType == TYPE_HEADER_SYSTEM) {
                         SpecialViewHolder.HEADER_SYSTEM_APP
                     } else {
@@ -158,7 +158,7 @@ class AppsRecyclerAdapter(
                     modelProvider.loadApkImage(rowItem.path, holder.apkIcon)
                 }
                 if (isBottomSheet.not()) {
-                    if ((fragment.requireActivity() as MainActivity).appTheme == AppTheme.LIGHT) {
+                    if ((fragment.requireActivity() as MainActivity).getAppTheme() == AppTheme.LIGHT) {
                         holder.about.setColorFilter(
                             Color.parseColor("#ff666666"),
                         )
@@ -196,7 +196,7 @@ class AppsRecyclerAdapter(
                     Utils.getColor(fragment.context, R.color.appsadapter_background),
                 )
             } else {
-                if ((fragment.requireActivity() as MainActivity).appTheme == AppTheme.LIGHT) {
+                if ((fragment.requireActivity() as MainActivity).getAppTheme() == AppTheme.LIGHT) {
                     holder.rl.setBackgroundResource(R.drawable.safr_ripple_white)
                 } else {
                     holder.rl.setBackgroundResource(R.drawable.safr_ripple_black)
@@ -281,7 +281,7 @@ class AppsRecyclerAdapter(
             if ((
                         fragment.requireActivity()
                                 as MainActivity
-                        ).appTheme == AppTheme.BLACK
+                        ).getAppTheme() == AppTheme.BLACK
             ) {
                 context = ContextThemeWrapper(context, R.style.overflow_black)
             }
@@ -369,11 +369,11 @@ class AppsRecyclerAdapter(
         val arrayList2 =
             ArrayList<File>()
         arrayList2.add(File(appDataParcelable.path))
-        themedActivity.colorPreference
+        themedActivity.getColorPreference()
         FileUtils.shareFiles(
             arrayList2,
             fragment.activity,
-            themedActivity.utilsProvider.appTheme,
+            themedActivity.getUtilsProvider().appTheme,
             colorAccent,
         )
     }
@@ -491,7 +491,7 @@ class AppsRecyclerAdapter(
             MaterialDialog.Builder(fragment.requireContext())
         builder1
             .theme(
-                themedActivity.appTheme.materialDialogTheme,
+                themedActivity.getAppTheme().materialDialogTheme,
             )
             .content(fragment.getString(R.string.unin_system_apk))
             .title(fragment.getString(R.string.warning))

@@ -264,7 +264,7 @@ class OpenFileDialogFragment : BaseBottomSheetFragment(), AdjustListViewForTv<Ap
         uri = arguments?.getParcelable(KEY_URI)
         mimeType = arguments?.getString(KEY_MIME_TYPE)
         useNewStack = arguments?.getBoolean(KEY_USE_NEW_STACK)
-        utilsProvider = (activity as BasicActivity?)!!.utilsProvider
+        utilsProvider = (activity as BasicActivity?)!!.getUtilsProvider()
         setStyle(STYLE_NORMAL, R.style.appBottomSheetDialogTheme)
     }
 

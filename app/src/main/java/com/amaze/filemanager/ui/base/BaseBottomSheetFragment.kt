@@ -1,5 +1,6 @@
 package com.amaze.filemanager.ui.base
 
+import android.annotation.SuppressLint
 import android.app.Dialog
 import android.os.Bundle
 import android.view.View
@@ -17,8 +18,9 @@ open class BaseBottomSheetFragment : BottomSheetDialogFragment() {
     /**
      * Initializes bottom sheet ui resources based on current theme
      */
+    @SuppressLint("UseCompatLoadingForDrawables")
     fun initDialogResources(rootView: View) {
-        when ((requireActivity() as ThemedActivity).appTheme!!) {
+        when ((requireActivity() as ThemedActivity).getAppTheme()) {
             AppTheme.DARK -> {
                 rootView.setBackgroundDrawable(
                     context?.resources?.getDrawable(

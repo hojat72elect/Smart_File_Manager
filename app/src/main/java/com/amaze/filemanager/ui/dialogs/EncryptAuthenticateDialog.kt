@@ -213,7 +213,7 @@ object EncryptAuthenticateDialog {
                 false,
             )
         ) {
-            EncryptWarningDialog.show(main, main.appTheme)
+            EncryptWarningDialog.show(main, main.getAppTheme())
         }
         encryptSaveAsEditText.setText(
             "${file.getName(c)}${
