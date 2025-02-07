@@ -1,0 +1,56 @@
+buildscript {
+    ext {
+        kotlin_version = "1.9.10"
+    }
+    repositories {
+        google()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.3.1'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+        classpath "com.project.starter:easylauncher:6.1.0"
+    }
+}
+
+plugins {
+    id "com.google.devtools.ksp" version "1.9.10-1.0.13" apply false
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url "https://jitpack.io" }
+        maven { url "https://jcenter.bintray.com" }
+    }
+    tasks.withType(Test).tap {
+        configureEach {
+            maxParallelForks = 8
+            maxHeapSize = "2g"
+            forkEvery = 4
+            failFast = true
+        }
+    }
+}
+
+subprojects {
+    afterEvaluate {
+
+        dependencies {
+
+            if (project.hasProperty('kapt')) {
+                kapt 'javax.xml.bind:jaxb-api:2.3.1'
+                kapt 'com.sun.xml.bind:jaxb-core:2.3.0.1'
+                kapt 'com.sun.xml.bind:jaxb-impl:2.3.2'
+            }
+
+            annotationProcessor 'javax.xml.bind:jaxb-api:2.3.1'
+            annotationProcessor 'com.sun.xml.bind:jaxb-core:2.3.0.1'
+            annotationProcessor 'com.sun.xml.bind:jaxb-impl:2.3.2'
+        }
+    }
+
+}

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/parent"
+    android:layout_width="@dimen/material_sheet_peek_height"
+    android:layout_height="wrap_content"
+    android:background="@drawable/shape_dialog_bottomsheet_white"
+    android:elevation="@dimen/material_generic_card_elevation"
+    android:maxHeight="@dimen/material_sheet_height">
+
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/last_app_image"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_marginStart="@dimen/material_generic"
+        android:layout_marginLeft="@dimen/material_generic"
+        android:layout_marginTop="@dimen/material_generic_medium"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/last_app_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/material_generic_medium"
+        android:layout_marginLeft="@dimen/material_generic"
+        android:layout_marginTop="@dimen/material_generic_medium"
+        android:textAppearance="@style/TextAppearance.AppCompat.Large"
+        app:layout_constraintLeft_toRightOf="@id/last_app_image"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.appcompat.widget.AppCompatImageButton
+        android:id="@+id/open_as_button"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_margin="@dimen/material_generic"
+        android:background="@drawable/ripple_focusable"
+        android:focusable="true"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@drawable/ic_baseline_input_24" />
+
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/always_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/material_generic_medium"
+        android:layout_marginEnd="@dimen/material_generic"
+        android:layout_marginRight="@dimen/material_generic"
+        android:background="@drawable/ripple_focusable"
+        android:focusable="true"
+        android:text="@string/always"
+        android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/open_as_button" />
+
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/just_once_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/material_generic_medium"
+        android:layout_marginEnd="@dimen/material_generic_medium"
+        android:layout_marginRight="@dimen/material_generic"
+        android:background="@drawable/ripple_focusable"
+        android:focusable="true"
+        android:text="@string/just_once"
+        android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+        app:layout_constraintRight_toLeftOf="@+id/always_button"
+        app:layout_constraintTop_toBottomOf="@id/open_as_button" />
+
+    <View
+        android:id="@+id/divider"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/height_divider"
+        android:layout_marginTop="@dimen/material_generic"
+        android:background="@color/divider_translucent"
+        app:layout_constraintTop_toBottomOf="@+id/just_once_button" />
+
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/choose_different_app_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="@dimen/material_generic"
+        android:text="@string/choose_different_app"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/divider" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/apps_recycler_view"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/material_sheet_listview_height"
+        android:layout_marginTop="@dimen/material_generic"
+        android:descendantFocusability="afterDescendants"
+        app:layout_constraintTop_toBottomOf="@+id/choose_different_app_text_view" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

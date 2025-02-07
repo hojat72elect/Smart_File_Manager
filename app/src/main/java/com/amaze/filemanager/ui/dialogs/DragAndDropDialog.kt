@@ -1,0 +1,196 @@
+package com.amaze.filemanager.ui.dialogs
+
+import android.app.Dialog
+import android.content.Context
+import android.os.Bundle
+import androidx.appcompat.widget.AppCompatButton
+import androidx.appcompat.widget.AppCompatCheckBox
+import androidx.fragment.app.DialogFragment
+import com.afollestad.materialdialogs.DialogAction
+import com.afollestad.materialdialogs.MaterialDialog
+import com.afollestad.materialdialogs.Theme
+import com.amaze.filemanager.R
+import com.amaze.filemanager.asynchronous.asynctasks.movecopy.PreparePasteTask
+import com.amaze.filemanager.filesystem.HybridFileParcelable
+import com.amaze.filemanager.ui.activities.MainActivity
+import com.amaze.filemanager.ui.fragments.preferencefragments.PreferencesConstants
+import com.amaze.filemanager.utils.safeLet
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
+import java.util.Locale
+
+class DragAndDropDialog : DialogFragment() {
+    private var pasteLocation: String? = null
+    private var operationFiles: ArrayList<HybridFileParcelable>? = null
+    var mainActivity: MainActivity? = null
+
+    companion object {
+        private val log: Logger = LoggerFactory.getLogger(DragAndDropDialog::class.java)
+        private const val KEY_PASTE_LOCATION = "pasteLocation"
+        private const val KEY_FILES = "files"
+
+        /**
+         * Show move / copy dialog on drop or perform the operation directly based on
+         * remember preference selected by user previously in this dialog
+         */
+        fun showDialogOrPerformOperation(
+            pasteLocation: String,
+            files: ArrayList<HybridFileParcelable>,
+            activity: MainActivity,
+        ) {
+            val dragAndDropPref =
+                activity.prefs
+                    .getInt(
+                        PreferencesConstants.PREFERENCE_DRAG_AND_DROP_PREFERENCE,
+                        PreferencesConstants.PREFERENCE_DRAG_DEFAULT,
+                    )
+            if (dragAndDropPref == PreferencesConstants.PREFERENCE_DRAG_TO_MOVE_COPY) {
+                val dragAndDropCopy =
+                    activity.prefs
+                        .getString(PreferencesConstants.PREFERENCE_DRAG_AND_DROP_REMEMBERED, "")
+                if (dragAndDropCopy != "") {
+                    startCopyOrMoveTask(
+                        pasteLocation,
+                        files,
+                        PreferencesConstants.PREFERENCE_DRAG_REMEMBER_MOVE
+                            .equals(dragAndDropCopy, ignoreCase = true),
+                        activity,
+                    )
+                } else {
+                    val dragAndDropDialog = newInstance(pasteLocation, files)
+                    dragAndDropDialog.show(
+                        activity.supportFragmentManager,
+                        javaClass.simpleName,
+                    )
+                }
+            } else {
+                log.warn(
+                    "Trying to drop for copy / move while setting " +
+                            "is drag select",
+                )
+            }
+        }
+
+        private fun newInstance(
+            pasteLocation: String,
+            files: ArrayList<HybridFileParcelable>,
+        ): DragAndDropDialog {
+            val dragAndDropDialog = DragAndDropDialog()
+            val args = Bundle()
+            args.putString(KEY_PASTE_LOCATION, pasteLocation)
+            args.putParcelableArrayList(KEY_FILES, files)
+            dragAndDropDialog.arguments = args
+            return dragAndDropDialog
+        }
+
+        private fun startCopyOrMoveTask(
+            pasteLocation: String,
+            files: ArrayList<HybridFileParcelable>,
+            move: Boolean,
+            mainActivity: MainActivity,
+        ) {
+            val openMode =
+                mainActivity.currentMainFragment?.mainFragmentViewModel?.openMode ?: return
+            PreparePasteTask(mainActivity)
+                .execute(
+                    pasteLocation,
+                    move,
+                    mainActivity.isRootExplorer,
+                    openMode,
+                    files,
+                )
+        }
+    }
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        mainActivity = context as MainActivity
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        pasteLocation = arguments?.getString(KEY_PASTE_LOCATION)
+        operationFiles = arguments?.getParcelableArrayList(KEY_FILES)
+    }
+
+    override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
+        safeLet(
+            context,
+            mainActivity?.appTheme?.materialDialogTheme,
+            mainActivity?.accent,
+            pasteLocation,
+            operationFiles,
+        ) { context, dialogTheme, accent, pasteLocation, operationFiles ->
+            val dialog: MaterialDialog =
+                MaterialDialog.Builder(context)
+                    .title(getString(R.string.choose_operation))
+                    .customView(R.layout.dialog_drag_drop, true)
+                    .theme(dialogTheme)
+                    .negativeText(getString(R.string.cancel).uppercase(Locale.getDefault()))
+                    .negativeColor(accent)
+                    .cancelable(false)
+                    .onNeutral { _: MaterialDialog?, _: DialogAction? ->
+                        dismiss()
+                    }
+                    .build()
+
+            dialog.customView?.run {
+                // Get views from custom layout to set text values.
+                val rememberCheckbox = this.findViewById<AppCompatCheckBox>(R.id.remember_drag)
+                val moveButton = this.findViewById<AppCompatButton>(R.id.button_move)
+                moveButton.setOnClickListener {
+                    mainActivity?.run {
+                        if (rememberCheckbox.isChecked) {
+                            rememberDragOperation(true)
+                        }
+                        startCopyOrMoveTask(pasteLocation, operationFiles, true, this)
+                        dismiss()
+                    }
+                }
+                val copyButton = this.findViewById<AppCompatButton>(R.id.button_copy)
+                copyButton.setOnClickListener {
+                    mainActivity?.run {
+                        if (rememberCheckbox.isChecked) {
+                            rememberDragOperation(false)
+                        }
+                        startCopyOrMoveTask(pasteLocation, operationFiles, false, this)
+                        dismiss()
+                    }
+                }
+                if (dialogTheme == Theme.LIGHT) {
+                    moveButton.setCompoundDrawablesWithIntrinsicBounds(
+                        R.drawable.ic_baseline_content_cut_24,
+                        0,
+                        0,
+                        0,
+                    )
+                    copyButton.setCompoundDrawablesWithIntrinsicBounds(
+                        R.drawable.ic_baseline_content_copy_24,
+                        0,
+                        0,
+                        0,
+                    )
+                }
+            }
+            return dialog
+        }
+        log.warn("Failed to show drag drop dialog view")
+        return super.onCreateDialog(savedInstanceState)
+    }
+
+    override fun isCancelable(): Boolean {
+        return false
+    }
+
+    private fun rememberDragOperation(shouldMove: Boolean) {
+        mainActivity?.prefs?.edit()
+            ?.putString(
+                PreferencesConstants.PREFERENCE_DRAG_AND_DROP_REMEMBERED,
+                if (shouldMove) {
+                    PreferencesConstants.PREFERENCE_DRAG_REMEMBER_MOVE
+                } else {
+                    PreferencesConstants.PREFERENCE_DRAG_REMEMBER_COPY
+                },
+            )?.apply()
+    }
+}

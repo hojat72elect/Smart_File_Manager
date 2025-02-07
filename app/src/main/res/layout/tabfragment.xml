@@ -1,0 +1,55 @@
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <androidx.viewpager2.widget.ViewPager2
+        android:id="@+id/pager"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:overScrollMode="never"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+    </androidx.viewpager2.widget.ViewPager2>
+
+    <View
+        android:id="@+id/placeholder_drag_left"
+        android:layout_width="@dimen/material_generic_medium"
+        android:layout_height="@dimen/zero_dp"
+        android:background="@null"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:id="@+id/placeholder_drag_right"
+        android:layout_width="@dimen/material_generic_medium"
+        android:layout_height="@dimen/zero_dp"
+        android:background="@null"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.appcompat.widget.AppCompatImageView
+        android:id="@+id/placeholder_trash_bottom"
+        android:layout_width="@dimen/zero_dp"
+        android:layout_height="@dimen/material_generic_large"
+        android:layout_marginBottom="@dimen/minimal_row_height"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:srcCompat="@drawable/ic_drag_to_trash" />
+
+    <include
+        android:id="@+id/drag_placeholder"
+        layout="@layout/drag_placeholder"
+        android:layout_width="@dimen/drag_icon_size"
+        android:layout_height="@dimen/drag_icon_size"
+        android:layout_margin="@dimen/material_generic_large"
+        android:visibility="invisible"
+        app:layout_constraintTop_toBottomOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>

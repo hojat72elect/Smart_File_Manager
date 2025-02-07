@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/notification_service_filename_big"
+            style="@style/TextAppearance.Compat.Notification.Info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:text="@string/filename"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/notification_service_textView_filename_big"
+            style="@style/TextAppearance.Compat.Notification.Info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/material_generic"
+            android:layout_marginLeft="@dimen/material_generic"
+            android:layout_toEndOf="@+id/notification_service_filename_big"
+            android:layout_toRightOf="@+id/notification_service_filename_big"
+            android:ellipsize="middle"
+            android:singleLine="true" />
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/notification_service_written_big"
+            style="@style/TextAppearance.Compat.Notification.Info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:text="@string/written"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/notification_service_textView_written_big"
+            style="@style/TextAppearance.Compat.Notification.Info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/material_generic"
+            android:layout_marginLeft="@dimen/material_generic"
+            android:layout_toEndOf="@id/notification_service_written_big"
+            android:layout_toRightOf="@id/notification_service_written_big" />
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/notification_service_timeRemaining_big"
+            style="@style/TextAppearance.Compat.Notification.Info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:text="@string/time_remaining"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/notification_service_textView_timeRemaining_big"
+            style="@style/TextAppearance.Compat.Notification.Info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/material_generic"
+            android:layout_marginLeft="@dimen/material_generic"
+            android:layout_toEndOf="@id/notification_service_timeRemaining_big"
+            android:layout_toRightOf="@id/notification_service_timeRemaining_big" />
+    </RelativeLayout>
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <TextView
+            android:id="@+id/notification_service_transferRate_big"
+            style="@style/TextAppearance.Compat.Notification.Info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignParentStart="true"
+            android:layout_alignParentLeft="true"
+            android:text="@string/transfer_rate"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/notification_service_textView_transferRate_big"
+            style="@style/TextAppearance.Compat.Notification.Info"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/material_generic"
+            android:layout_marginLeft="@dimen/material_generic"
+            android:layout_toEndOf="@id/notification_service_transferRate_big"
+            android:layout_toRightOf="@id/notification_service_transferRate_big" />
+    </RelativeLayout>
+
+    <ProgressBar
+        android:id="@+id/notification_service_progressBar_big"
+        style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/material_generic" />
+</LinearLayout>

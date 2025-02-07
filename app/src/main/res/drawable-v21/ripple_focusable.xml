@@ -1,0 +1,7 @@
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?android:colorControlHighlight">
+    <item
+        android:drawable="@drawable/safr_ripple_white"
+        android:state_activated="true"
+        android:state_focused="true" />
+</ripple>

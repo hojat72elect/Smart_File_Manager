@@ -1,0 +1,46 @@
+package com.amaze.filemanager.filesystem.root
+
+import com.amaze.filemanager.fileoperations.exceptions.ShellNotRunningException
+import com.amaze.filemanager.filesystem.RootHelper
+import com.amaze.filemanager.filesystem.root.base.IRootCommand
+import com.topjohnwu.superuser.Shell
+
+object ChangeFilePermissionsCommand : IRootCommand() {
+    private const val CHMOD_COMMAND = "chmod %s %o \"%s\""
+
+    /**
+     * Change permissions for a given file path - requires root
+     *
+     * @param filePath given file path
+     * @param updatedPermissions octal notation for permissions
+     * @param isDirectory is given path a directory or file
+     */
+    @Throws(ShellNotRunningException::class)
+    fun changeFilePermissions(
+        filePath: String,
+        updatedPermissions: Int,
+        isDirectory: Boolean,
+        onOperationPerform: (Boolean) -> Unit,
+    ) {
+        val mountPoint = MountPathCommand.mountPath(filePath, MountPathCommand.READ_WRITE)
+
+        val options = if (isDirectory) "-R" else ""
+        val command =
+            String.format(
+                CHMOD_COMMAND,
+                options,
+                updatedPermissions,
+                RootHelper.getCommandLineString(filePath),
+            )
+
+        runShellCommand(command).let { result: Shell.Result ->
+            if (result.code < 0) {
+                onOperationPerform(false)
+            } else {
+                onOperationPerform(true)
+            }
+        }
+
+        mountPoint?.let { MountPathCommand.mountPath(it, MountPathCommand.READ_ONLY) }
+    }
+}

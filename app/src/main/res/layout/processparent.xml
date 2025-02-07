@@ -1,0 +1,105 @@
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <androidx.cardview.widget.CardView xmlns:card_view="http://schemas.android.com/apk/res-auto"
+            android:id="@+id/card_view"
+            android:layout_width="match_parent"
+            android:layout_height="500dp"
+            card_view:cardCornerRadius="4dp"
+            card_view:cardElevation="4dp"
+            card_view:cardUseCompatPadding="true">
+
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent">
+
+                <com.github.mikephil.charting.charts.LineChart
+                    android:id="@+id/progress_chart"
+                    android:layout_width="match_parent"
+                    android:layout_height="250dp"
+                    android:layout_alignParentTop="true"
+                    android:paddingBottom="@dimen/material_generic" />
+
+                <RelativeLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_below="@+id/progress_chart"
+                    android:padding="@dimen/material_generic">
+
+                    <androidx.appcompat.widget.AppCompatImageView
+                        android:id="@+id/progress_image"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentLeft="true"
+                        android:layout_centerVertical="true"
+                        android:layout_marginRight="@dimen/material_generic" />
+
+                    <androidx.appcompat.widget.AppCompatImageButton
+                        android:id="@+id/delete_button"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_alignParentRight="true"
+                        android:layout_centerVertical="true"
+                        android:layout_marginLeft="@dimen/material_generic"
+                        android:background="@drawable/ripple"
+                        app:srcCompat="@drawable/ic_action_cancel_light" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:layout_toLeftOf="@id/delete_button"
+                        android:layout_toRightOf="@id/progress_image"
+                        android:orientation="vertical">
+
+                        <androidx.appcompat.widget.AppCompatTextView
+                            android:id="@+id/text_view_progress_type"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:layout_marginBottom="@dimen/material_generic"
+                            android:textAppearance="@android:style/TextAppearance.DeviceDefault.Small"
+                            android:textColor="@android:color/darker_gray"
+                            android:textStyle="bold" />
+
+                        <com.amaze.filemanager.ui.views.ThemedTextView
+                            android:id="@+id/text_view_progress_file_name"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="@dimen/material_generic"
+                            android:textStyle="italic" />
+
+                        <com.amaze.filemanager.ui.views.ThemedTextView
+                            android:id="@+id/text_view_progress_bytes"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="@dimen/material_generic" />
+
+                        <com.amaze.filemanager.ui.views.ThemedTextView
+                            android:id="@+id/text_view_progress_file"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="@dimen/material_generic" />
+
+                        <com.amaze.filemanager.ui.views.ThemedTextView
+                            android:id="@+id/text_view_progress_speed"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="@dimen/material_generic" />
+
+                        <com.amaze.filemanager.ui.views.ThemedTextView
+                            android:id="@+id/text_view_progress_timer"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="@dimen/material_generic" />
+
+                    </LinearLayout>
+                </RelativeLayout>
+            </RelativeLayout>
+        </androidx.cardview.widget.CardView>
+    </ScrollView>
+</FrameLayout>

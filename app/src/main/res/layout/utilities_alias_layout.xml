@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="500dp"
+    android:layout_height="wrap_content"
+    android:padding="@dimen/material_generic">
+
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:singleLine="true"
+        android:text="@string/amaze_file_utilities"
+        android:textColor="@color/primary_white"
+        android:textSize="@dimen/twenty_four_sp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/content"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/material_generic"
+        android:text="@string/download_amaze_utils_text"
+        android:textColor="@color/primary_white"
+        android:textSize="@dimen/eighteen_sp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/title" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/material_generic"
+        android:gravity="end"
+        android:orientation="horizontal"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/content">
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/cancel_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/material_generic"
+            android:layout_marginRight="@dimen/material_generic"
+            android:text="@string/cancel"
+            android:textColor="@color/primary_white"
+            app:backgroundTint="@color/navy_blue_alt"
+            app:cornerRadius="@dimen/material_generic" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/download_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/download"
+            android:textColor="@color/navy_blue_alt"
+            app:backgroundTint="@color/primary_white"
+            app:cornerRadius="@dimen/material_generic" />
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <com.amaze.filemanager.ui.views.WarnableTextInputLayout
+        android:id="@+id/til_encrypt_password"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:errorEnabled="true"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/edit_text_dialog_encrypt_password"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:ems="10"
+            android:hint="@string/password"
+            android:inputType="textPassword" />
+    </com.amaze.filemanager.ui.views.WarnableTextInputLayout>
+
+
+    <com.amaze.filemanager.ui.views.WarnableTextInputLayout
+        android:id="@+id/til_encrypt_password_confirm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:errorEnabled="true"
+        app:layout_constraintTop_toBottomOf="@id/til_encrypt_password">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/edit_text_dialog_encrypt_password_confirm"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:ems="10"
+            android:hint="@string/password_repeat"
+            android:inputType="textPassword" />
+    </com.amaze.filemanager.ui.views.WarnableTextInputLayout>
+
+    <com.amaze.filemanager.ui.views.WarnableTextInputLayout
+        android:id="@+id/til_encrypt_save_as"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/til_encrypt_password_confirm">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/edit_text_encrypt_save_as"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:ems="10"
+            android:inputType="textCapSentences" />
+
+    </com.amaze.filemanager.ui.views.WarnableTextInputLayout>
+
+    <androidx.appcompat.widget.AppCompatCheckBox
+        android:id="@+id/checkbox_use_aze"
+        android:layout_width="wrap_content"
+        android:layout_height="40dp"
+        android:layout_gravity="center_vertical"
+        android:text="@string/encrypt_option_use_aze"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/til_encrypt_save_as" />
+
+    <androidx.appcompat.widget.AppCompatTextView
+        android:id="@+id/text_view_crypt_info"
+        android:layout_width="wrap_content"
+        android:layout_height="match_parent"
+        android:layout_gravity="center_vertical"
+        android:text="@string/encrypt_option_use_aescrypt_desc"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/checkbox_use_aze" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

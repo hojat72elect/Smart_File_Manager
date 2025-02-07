@@ -1,0 +1,121 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+apply plugin: 'com.google.devtools.ksp'
+
+android {
+    compileSdk libs.versions.compileSdk.get().toInteger()
+
+    defaultConfig {
+        minSdkVersion libs.versions.minSdk.get().toInteger()
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        consumerProguardFiles "consumer-rules.pro"
+
+        multiDexEnabled true
+
+        externalNativeBuild {
+            cmake {
+                cFlags '-std=c11'
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            ndk.debugSymbolLevel = 'FULL'
+        }
+    }
+
+    sourceSets {
+        test.java.srcDirs += '../testShared/src/test/java'
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            returnDefaultValues = true
+        }
+    }
+
+    externalNativeBuild {
+        cmake {
+            path file('src/main/c/CMakeLists.txt')
+            version '3.18.1'
+        }
+    }
+
+    kotlinOptions {
+        jvmTarget = '11'
+    }
+}
+
+kotlin {
+    jvmToolchain(11)
+}
+
+dependencies {
+    modules {
+        module("org.bouncycastle:bcprov-jdk15on") {
+            replacedBy("org.bouncycastle:bcprov-jdk18on")
+        }
+        module("org.bouncycastle:bcpkix-jdk15on") {
+            replacedBy("org.bouncycastle:bcpkix-jdk18on")
+        }
+        module("org.bouncycastle:bcprov-jdk15to18") {
+            replacedBy("org.bouncycastle:bcprov-jdk18on")
+        }
+        module("org.bouncycastle:bcpkix-jdk15to18") {
+            replacedBy("org.bouncycastle:bcpkix-jdk18on")
+        }
+    }
+
+    implementation libs.commons.compress
+
+    //zip4j: support password-protected zips
+    implementation libs.zip4j
+
+    //SFTP
+    implementation libs.sshj
+
+    //smb
+    implementation libs.jcifs.ng
+
+    implementation libs.androidX.multidex //Multiple dex files
+
+    //TODO some libs are not needed
+    implementation libs.xz
+
+    //For tests
+    testImplementation libs.junit //tests the app logic
+    testImplementation libs.robolectric //tests android interaction
+    testImplementation libs.robolectric.shadows.httpclient //tests android interaction
+    testImplementation libs.androidX.test.core
+    testImplementation libs.androidX.test.runner
+    testImplementation libs.androidX.test.rules
+    testImplementation libs.androidX.test.ext.junit
+    //testImplementation 'androidx.test.uiautomator:uiautomator:2.2.0'
+    testImplementation libs.mockito.core
+    testImplementation libs.apache.sshd
+    testImplementation libs.awaitility
+    testImplementation libs.jsoup
+    kspTest libs.auto.service
+
+    androidTestImplementation libs.junit //tests the app logic
+    androidTestImplementation libs.androidX.test.expresso
+    androidTestImplementation libs.androidX.test.core
+    androidTestImplementation libs.androidX.test.runner
+    androidTestImplementation libs.androidX.test.rules
+    androidTestImplementation libs.androidX.test.ext.junit
+    androidTestImplementation libs.commons.net
+    androidTestImplementation libs.awaitility
+
+    implementation fileTree(dir: "libs", include: ["*.jar"])
+    implementation libs.androidX.appcompat
+}

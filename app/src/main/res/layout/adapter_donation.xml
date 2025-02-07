@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:id="@+id/adapter_donation_root"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="?selectableItemBackground"
+        android:orientation="horizontal"
+        android:padding="@dimen/minimal_material_padding">
+
+        <LinearLayout
+            android:id="@+id/test"
+            android:layout_width="@dimen/zero_dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/minimal_material_padding"
+            android:layout_marginLeft="@dimen/minimal_material_padding"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/adapter_donation_title"
+                style="@style/Base.TextAppearance.AppCompat.Medium"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+
+            <TextView
+                android:id="@+id/adapter_donation_summary"
+                style="@style/Base.TextAppearance.AppCompat.Small"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/minimal_material_padding"
+                android:textColor="@color/goback_item" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/adapter_donation_price"
+            style="@style/Base.TextAppearance.AppCompat.Medium"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/minimal_material_padding"
+            android:layout_marginLeft="@dimen/minimal_material_padding"
+            android:textColor="@color/primary_light_green" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

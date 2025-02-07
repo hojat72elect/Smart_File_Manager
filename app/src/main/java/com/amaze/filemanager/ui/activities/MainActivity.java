@@ -1,0 +1,2291 @@
+package com.amaze.filemanager.ui.activities;
+
+import static com.amaze.filemanager.fileoperations.filesystem.FolderStateKt.WRITABLE_OR_ON_SDCARD;
+import static com.amaze.filemanager.fileoperations.filesystem.OperationTypeKt.COMPRESS;
+import static com.amaze.filemanager.fileoperations.filesystem.OperationTypeKt.COPY;
+import static com.amaze.filemanager.fileoperations.filesystem.OperationTypeKt.DELETE;
+import static com.amaze.filemanager.fileoperations.filesystem.OperationTypeKt.EXTRACT;
+import static com.amaze.filemanager.fileoperations.filesystem.OperationTypeKt.MOVE;
+import static com.amaze.filemanager.fileoperations.filesystem.OperationTypeKt.NEW_FILE;
+import static com.amaze.filemanager.fileoperations.filesystem.OperationTypeKt.NEW_FOLDER;
+import static com.amaze.filemanager.fileoperations.filesystem.OperationTypeKt.RENAME;
+import static com.amaze.filemanager.fileoperations.filesystem.OperationTypeKt.SAVE_FILE;
+import static com.amaze.filemanager.fileoperations.filesystem.OperationTypeKt.UNDEFINED;
+import static com.amaze.filemanager.filesystem.ftp.FTPClientImpl.ARG_TLS;
+import static com.amaze.filemanager.filesystem.ftp.FTPClientImpl.TLS_EXPLICIT;
+import static com.amaze.filemanager.filesystem.ftp.NetCopyClientConnectionPool.FTPS_URI_PREFIX;
+import static com.amaze.filemanager.filesystem.ftp.NetCopyClientConnectionPool.FTP_URI_PREFIX;
+import static com.amaze.filemanager.filesystem.ftp.NetCopyClientConnectionPool.SSH_URI_PREFIX;
+import static com.amaze.filemanager.ui.dialogs.SftpConnectDialog.ARG_ADDRESS;
+import static com.amaze.filemanager.ui.dialogs.SftpConnectDialog.ARG_DEFAULT_PATH;
+import static com.amaze.filemanager.ui.dialogs.SftpConnectDialog.ARG_EDIT;
+import static com.amaze.filemanager.ui.dialogs.SftpConnectDialog.ARG_HAS_PASSWORD;
+import static com.amaze.filemanager.ui.dialogs.SftpConnectDialog.ARG_KEYPAIR_NAME;
+import static com.amaze.filemanager.ui.dialogs.SftpConnectDialog.ARG_NAME;
+import static com.amaze.filemanager.ui.dialogs.SftpConnectDialog.ARG_PASSWORD;
+import static com.amaze.filemanager.ui.dialogs.SftpConnectDialog.ARG_PORT;
+import static com.amaze.filemanager.ui.dialogs.SftpConnectDialog.ARG_PROTOCOL;
+import static com.amaze.filemanager.ui.dialogs.SftpConnectDialog.ARG_USERNAME;
+import static com.amaze.filemanager.ui.fragments.FtpServerFragment.REQUEST_CODE_SAF_FTP;
+import static com.amaze.filemanager.ui.fragments.preferencefragments.PreferencesConstants.PREFERENCE_BOOKMARKS_ADDED;
+import static com.amaze.filemanager.ui.fragments.preferencefragments.PreferencesConstants.PREFERENCE_COLORED_NAVIGATION;
+import static com.amaze.filemanager.ui.fragments.preferencefragments.PreferencesConstants.PREFERENCE_NEED_TO_SET_HOME;
+import static com.amaze.filemanager.ui.fragments.preferencefragments.PreferencesConstants.PREFERENCE_VIEW;
+
+import android.annotation.SuppressLint;
+import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.ContentResolver;
+import android.content.ContentUris;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.res.Configuration;
+import android.database.Cursor;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.hardware.usb.UsbManager;
+import android.media.RingtoneManager;
+import android.net.Uri;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.os.Environment;
+import android.os.Handler;
+import android.os.storage.StorageManager;
+import android.os.storage.StorageVolume;
+import android.service.quicksettings.TileService;
+import android.text.TextUtils;
+import android.view.KeyEvent;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.animation.DecelerateInterpolator;
+import android.widget.Toast;
+
+import androidx.annotation.DrawableRes;
+import androidx.annotation.IdRes;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
+import androidx.arch.core.util.Function;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentTransaction;
+import androidx.loader.app.LoaderManager;
+import androidx.loader.content.CursorLoader;
+import androidx.loader.content.Loader;
+
+import com.afollestad.materialdialogs.DialogAction;
+import com.afollestad.materialdialogs.MaterialDialog;
+import com.afollestad.materialdialogs.folderselector.FolderChooserDialog;
+import com.amaze.filemanager.LogHelper;
+import com.amaze.filemanager.R;
+import com.amaze.filemanager.adapters.data.LayoutElementParcelable;
+import com.amaze.filemanager.adapters.data.StorageDirectoryParcelable;
+import com.amaze.filemanager.asynchronous.SaveOnDataUtilsChange;
+import com.amaze.filemanager.asynchronous.asynctasks.DeleteTask;
+import com.amaze.filemanager.asynchronous.asynctasks.TaskKt;
+import com.amaze.filemanager.asynchronous.asynctasks.movecopy.MoveFilesTask;
+import com.amaze.filemanager.asynchronous.management.ServiceWatcherUtil;
+import com.amaze.filemanager.asynchronous.services.CopyService;
+import com.amaze.filemanager.database.CloudContract;
+import com.amaze.filemanager.database.CloudHandler;
+import com.amaze.filemanager.database.SortHandler;
+import com.amaze.filemanager.database.TabHandler;
+import com.amaze.filemanager.database.UtilsHandler;
+import com.amaze.filemanager.database.models.OperationData;
+import com.amaze.filemanager.database.models.explorer.CloudEntry;
+import com.amaze.filemanager.fileoperations.exceptions.CloudPluginException;
+import com.amaze.filemanager.fileoperations.filesystem.OpenMode;
+import com.amaze.filemanager.fileoperations.filesystem.usb.SingletonUsbOtg;
+import com.amaze.filemanager.fileoperations.filesystem.usb.UsbOtgRepresentation;
+import com.amaze.filemanager.filesystem.FileUtil;
+import com.amaze.filemanager.filesystem.HybridFile;
+import com.amaze.filemanager.filesystem.HybridFileParcelable;
+import com.amaze.filemanager.filesystem.MakeFileOperation;
+import com.amaze.filemanager.filesystem.PasteHelper;
+import com.amaze.filemanager.filesystem.RootHelper;
+import com.amaze.filemanager.filesystem.files.FileUtils;
+import com.amaze.filemanager.filesystem.ftp.NetCopyClientConnectionPool;
+import com.amaze.filemanager.filesystem.ftp.NetCopyConnectionInfo;
+import com.amaze.filemanager.filesystem.ssh.SshClientUtils;
+import com.amaze.filemanager.play.asynchronous.asynctasks.CloudLoaderAsyncTask;
+import com.amaze.filemanager.ui.ExtensionsKt;
+import com.amaze.filemanager.ui.activities.superclasses.PermissionsActivity;
+import com.amaze.filemanager.ui.dialogs.AlertDialog;
+import com.amaze.filemanager.ui.dialogs.GeneralDialogCreation;
+import com.amaze.filemanager.ui.dialogs.HiddenFilesDialog;
+import com.amaze.filemanager.ui.dialogs.HistoryDialog;
+import com.amaze.filemanager.ui.dialogs.RenameBookmark;
+import com.amaze.filemanager.ui.dialogs.RenameBookmark.BookmarkCallback;
+import com.amaze.filemanager.ui.dialogs.SftpConnectDialog;
+import com.amaze.filemanager.ui.dialogs.SmbConnectDialog;
+import com.amaze.filemanager.ui.dialogs.SmbConnectDialog.SmbConnectionListener;
+import com.amaze.filemanager.ui.drag.TabFragmentBottomDragListener;
+import com.amaze.filemanager.ui.fragments.AppsListFragment;
+import com.amaze.filemanager.ui.fragments.CloudSheetFragment;
+import com.amaze.filemanager.ui.fragments.CloudSheetFragment.CloudConnectionCallbacks;
+import com.amaze.filemanager.ui.fragments.CompressedExplorerFragment;
+import com.amaze.filemanager.ui.fragments.FtpServerFragment;
+import com.amaze.filemanager.ui.fragments.MainFragment;
+import com.amaze.filemanager.ui.fragments.ProcessViewerFragment;
+import com.amaze.filemanager.ui.fragments.TabFragment;
+import com.amaze.filemanager.ui.fragments.data.MainFragmentViewModel;
+import com.amaze.filemanager.ui.fragments.preferencefragments.PreferencesConstants;
+import com.amaze.filemanager.ui.theme.AppTheme;
+import com.amaze.filemanager.ui.views.CustomZoomFocusChange;
+import com.amaze.filemanager.ui.views.appbar.AppBar;
+import com.amaze.filemanager.ui.views.drawer.Drawer;
+import com.amaze.filemanager.utils.AppConstants;
+import com.amaze.filemanager.utils.BookSorter;
+import com.amaze.filemanager.utils.DataUtils;
+import com.amaze.filemanager.utils.GenericExtKt;
+import com.amaze.filemanager.utils.MainActivityActionMode;
+import com.amaze.filemanager.utils.MainActivityHelper;
+import com.amaze.filemanager.utils.OTGUtil;
+import com.amaze.filemanager.utils.PackageUtils;
+import com.amaze.filemanager.utils.PreferenceUtils;
+import com.amaze.filemanager.utils.Utils;
+import com.cloudrail.si.CloudRail;
+import com.google.android.material.appbar.AppBarLayout;
+import com.google.android.material.snackbar.BaseTransientBottomBar;
+import com.google.android.material.snackbar.Snackbar;
+import com.leinardi.android.speeddial.FabWithLabelView;
+import com.leinardi.android.speeddial.SpeedDialActionItem;
+import com.leinardi.android.speeddial.SpeedDialOverlayLayout;
+import com.leinardi.android.speeddial.SpeedDialView;
+import com.topjohnwu.superuser.Shell;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.File;
+import java.io.IOException;
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
+import java.util.List;
+
+import io.reactivex.Completable;
+import io.reactivex.CompletableObserver;
+import io.reactivex.Flowable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.schedulers.Schedulers;
+import kotlin.collections.ArraysKt;
+import kotlin.jvm.functions.Function1;
+import kotlin.text.Charsets;
+
+public class MainActivity extends PermissionsActivity
+        implements SmbConnectionListener,
+        BookmarkCallback,
+        CloudConnectionCallbacks,
+        LoaderManager.LoaderCallbacks<Cursor>,
+        FolderChooserDialog.FolderCallback,
+        PermissionsActivity.OnPermissionGranted {
+
+    public static final String PASTEHELPER_BUNDLE = "pasteHelper";
+    public static final int REQUEST_CODE_SAF = 223;
+    public static final String KEY_INTENT_PROCESS_VIEWER = "openprocesses";
+    public static final String TAG_INTENT_FILTER_FAILED_OPS = "failedOps";
+    public static final String TAG_INTENT_FILTER_GENERAL = "general_communications";
+    public static final String ARGS_KEY_LOADER = "loader_cloud_args_service";
+    /**
+     * Broadcast which will be fired after every file operation, will denote list loading Registered
+     * by {@link MainFragment}
+     */
+    public static final String KEY_INTENT_LOAD_LIST = "loadlist";
+    /**
+     * Extras carried by the list loading intent Contains path of parent directory in which operation
+     * took place, so that we can run media scanner on it
+     */
+    public static final String KEY_INTENT_LOAD_LIST_FILE = "loadlist_file";
+    /**
+     * Mime type in intent that apps need to pass when trying to open file manager from a specific
+     * directory Should be clubbed with {@link Intent#ACTION_VIEW} and send in path to open in intent
+     * data field
+     */
+    public static final String ARGS_INTENT_ACTION_VIEW_MIME_FOLDER = "resource/folder";
+    public static final String ARGS_INTENT_ACTION_VIEW_APPLICATION_ALL = "application/*";
+    public static final String CLOUD_AUTHENTICATOR_GDRIVE = "android.intent.category.BROWSABLE";
+    public static final String CLOUD_AUTHENTICATOR_REDIRECT_URI = "com.amaze.filemanager:/auth";
+    public static final int REQUEST_CODE_CLOUD_LIST_KEYS = 5463;
+    public static final int REQUEST_CODE_CLOUD_LIST_KEY = 5472;
+    private static final Logger LOG = LoggerFactory.getLogger(MainActivity.class);
+    private static final String KEY_DRAWER_SELECTED = "selectitem";
+    private static final String KEY_OPERATION_PATH = "oppathe";
+    private static final String KEY_OPERATED_ON_PATH = "oppathe1";
+    private static final String KEY_OPERATIONS_PATH_LIST = "oparraylist";
+    private static final String KEY_OPERATION = "operation";
+    private static final String KEY_SELECTED_LIST_ITEM = "select_list_item";
+
+    private static final String INTERNAL_SHARED_STORAGE = "Internal shared storage";
+    private static final String INTENT_ACTION_OPEN_QUICK_ACCESS = "com.amaze.filemanager.openQuickAccess";
+    private static final String INTENT_ACTION_OPEN_RECENT = "com.amaze.filemanager.openRecent";
+    private static final String INTENT_ACTION_OPEN_FTP_SERVER = "com.amaze.filemanager.openFTPServer";
+    private static final String INTENT_ACTION_OPEN_APP_MANAGER = "com.amaze.filemanager.openAppManager";
+    // the current visible tab, either 0 or 1
+    public static int currentTab;
+    // private HistoryManager history, grid;
+    private final MainActivity mainActivity = this;
+    public String path = "";
+    public boolean mReturnIntent = false;
+    public boolean isCompressedOpen = false;
+    public boolean mRingtonePickerIntent = false;
+    public int skinStatusBar;
+    public MainActivityHelper mainActivityHelper;
+    private final BroadcastReceiver receiver2 =
+            new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent i) {
+                    if (i.getStringArrayListExtra(TAG_INTENT_FILTER_FAILED_OPS) != null) {
+                        ArrayList<HybridFileParcelable> failedOps =
+                                i.getParcelableArrayListExtra(TAG_INTENT_FILTER_FAILED_OPS);
+                        if (failedOps != null) {
+                            mainActivityHelper.showFailedOperationDialog(failedOps, mainActivity);
+                        }
+                    }
+                }
+            };
+    public int operation = -1;
+    public ArrayList<HybridFileParcelable> oparrayList;
+    public ArrayList<ArrayList<HybridFileParcelable>> oparrayListList;
+    public String oppathe, oppathe1;
+    public ArrayList<String> oppatheList;
+    public MainActivityActionMode mainActivityActionMode;
+    private DataUtils dataUtils;
+    private SpeedDialView floatingActionButton;
+    private SpeedDialView fabConfirmSelection;
+    // This holds the Uris to be written at initFabToSave()
+    private List<Uri> urisToBeSaved;
+    private AppBar appbar;
+    private Drawer drawer;
+    private String pathInCompressedArchive;
+    private boolean openProcesses = false;
+    private MaterialDialog materialDialog;
+    private boolean backPressedToExitOnce = false;
+    private WeakReference<Toast> toast = new WeakReference<>(null);
+    private Intent intent;
+    private View indicator_layout;
+    private AppBarLayout appBarLayout;
+    /**
+     * Receiver to check if a USB device is connected at the runtime of application
+     */
+    BroadcastReceiver mOtgReceiver =
+            new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_ATTACHED)) {
+                        List<UsbOtgRepresentation> connectedDevices =
+                                OTGUtil.getMassStorageDevicesConnected(MainActivity.this);
+                        if (!connectedDevices.isEmpty()) {
+                            SingletonUsbOtg.getInstance().resetUsbOtgRoot();
+                            SingletonUsbOtg.getInstance().setConnectedDevice(connectedDevices.get(0));
+                            drawer.refreshDrawer();
+                        }
+                    } else if (intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_DETACHED)) {
+                        SingletonUsbOtg.getInstance().resetUsbOtgRoot();
+                        drawer.refreshDrawer();
+                        goToMain(null);
+                    }
+                }
+            };
+    private SpeedDialOverlayLayout fabBgView;
+    private UtilsHandler utilsHandler;
+    private CloudHandler cloudHandler;
+    private CloudLoaderAsyncTask cloudLoaderAsyncTask;
+    /**
+     * This is for a hack.
+     *
+     * @see MainActivity#onLoadFinished(Loader, Cursor)
+     */
+    private Cursor cloudCursorData = null;
+    private boolean listItemSelected = false;
+    private String scrollToFileName = null;
+    private PasteHelper pasteHelper;
+
+    /**
+     * Called when the activity is first created.
+     */
+    @Override
+    public void onCreate(final Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.main_toolbar);
+
+        intent = getIntent();
+
+        dataUtils = DataUtils.getInstance();
+        if (savedInstanceState != null) {
+            listItemSelected = savedInstanceState.getBoolean(KEY_SELECTED_LIST_ITEM, false);
+        }
+
+        initialisePreferences();
+        initializeInteractiveShell();
+
+        dataUtils.registerOnDataChangedListener(new SaveOnDataUtilsChange(drawer));
+
+        com.amaze.filemanager.application.AmazeFileManagerApplication.getInstance().setMainActivityContext(this);
+
+        initialiseViews();
+        utilsHandler = com.amaze.filemanager.application.AmazeFileManagerApplication.getInstance().getUtilsHandler();
+        cloudHandler = new CloudHandler(this, com.amaze.filemanager.application.AmazeFileManagerApplication.getInstance().getExplorerDatabase());
+
+        initialiseFab(); // TODO: 7/12/2017 not init when actionIntent != null
+        mainActivityHelper = new MainActivityHelper(this);
+        mainActivityActionMode = new MainActivityActionMode(new WeakReference<>(MainActivity.this));
+
+        if (CloudSheetFragment.isCloudProviderAvailable(this)) {
+            try {
+                LoaderManager.getInstance(this).initLoader(REQUEST_CODE_CLOUD_LIST_KEYS, null, this);
+            } catch (Exception errorRaised) {
+                LOG.error("Error initializing cloud connections", errorRaised);
+                cloudHandler.clearAllCloudConnections();
+                AlertDialog.show(
+                        this,
+                        R.string.cloud_connection_credentials_cleared_msg,
+                        R.string.cloud_connection_credentials_cleared,
+                        android.R.string.ok,
+                        null,
+                        false
+                );
+                LoaderManager.getInstance(this).initLoader(REQUEST_CODE_CLOUD_LIST_KEYS, null, this);
+            }
+        }
+
+        path = intent.getStringExtra("path");
+        openProcesses = intent.getBooleanExtra(KEY_INTENT_PROCESS_VIEWER, false);
+
+        if (intent.getStringArrayListExtra(TAG_INTENT_FILTER_FAILED_OPS) != null) {
+            ArrayList<HybridFileParcelable> failedOps =
+                    intent.getParcelableArrayListExtra(TAG_INTENT_FILTER_FAILED_OPS);
+            if (failedOps != null) {
+                mainActivityHelper.showFailedOperationDialog(failedOps, this);
+            }
+        }
+
+        checkForExternalIntent(intent);
+
+        initialiseFabConfirmSelection();
+
+        drawer.setDrawerIndicatorEnabled();
+
+        if (!getBoolean(PREFERENCE_BOOKMARKS_ADDED)) {
+            utilsHandler.addCommonBookmarks();
+            getPrefs().edit().putBoolean(PREFERENCE_BOOKMARKS_ADDED, true).commit();
+        }
+
+        checkForExternalPermission();
+
+        Completable.fromRunnable(
+                        () -> {
+                            dataUtils.setHiddenFiles(utilsHandler.getHiddenFilesConcurrentRadixTree());
+                            dataUtils.setHistory(utilsHandler.getHistoryLinkedList());
+                            dataUtils.setGridfiles(utilsHandler.getGridViewList());
+                            dataUtils.setListfiles(utilsHandler.getListViewList());
+                            dataUtils.setBooks(utilsHandler.getBookmarksList());
+                            ArrayList<String[]> servers = new ArrayList<>();
+                            servers.addAll(utilsHandler.getSmbList());
+                            servers.addAll(utilsHandler.getSftpList());
+                            dataUtils.setServers(servers);
+
+                            ExtensionsKt.updateAUAlias(
+                                    this,
+                                    !PackageUtils.Companion.appInstalledOrNot(
+                                            AboutActivity.PACKAGE_AMAZE_UTILS, mainActivity.getPackageManager())
+                                            && !getBoolean(
+                                            PreferencesConstants.PREFERENCE_DISABLE_PLAYER_INTENT_FILTERS)
+                            );
+                        })
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                        new CompletableObserver() {
+                            @Override
+                            public void onSubscribe(@NonNull Disposable d) {
+                            }
+
+                            @Override
+                            public void onComplete() {
+                                drawer.refreshDrawer();
+                                invalidateFragmentAndBundle(savedInstanceState, false);
+                            }
+
+                            @Override
+                            public void onError(@NonNull Throwable e) {
+                                LOG.error("Error setting up DataUtils", e);
+                                drawer.refreshDrawer();
+                                invalidateFragmentAndBundle(savedInstanceState, false);
+                            }
+                        });
+        initStatusBarResources(findViewById(R.id.drawer_layout));
+    }
+
+    public void invalidateFragmentAndBundle(Bundle savedInstanceState, boolean isCloudRefresh) {
+        if (savedInstanceState == null) {
+            if (openProcesses) {
+                FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+                transaction.replace(
+                        R.id.content_frame, new ProcessViewerFragment(), KEY_INTENT_PROCESS_VIEWER);
+                // transaction.addToBackStack(null);
+                openProcesses = false;
+                // title.setText(utils.getString(con, R.string.process_viewer));
+                // Commit the transaction
+                transaction.commit();
+                supportInvalidateOptionsMenu();
+            } else if (intent.getAction() != null
+                    && (intent.getAction().equals(TileService.ACTION_QS_TILE_PREFERENCES)
+                    || INTENT_ACTION_OPEN_FTP_SERVER.equals(intent.getAction()))) {
+                // tile preferences, open ftp fragment
+
+                FragmentTransaction transaction2 = getSupportFragmentManager().beginTransaction();
+                transaction2.replace(R.id.content_frame, new FtpServerFragment());
+                appBarLayout
+                        .animate()
+                        .translationY(0)
+                        .setInterpolator(new DecelerateInterpolator(2))
+                        .start();
+
+                drawer.deselectEverything();
+                transaction2.commit();
+            } else if (intent.getAction() != null
+                    && INTENT_ACTION_OPEN_APP_MANAGER.equals(intent.getAction())) {
+                FragmentTransaction transaction3 = getSupportFragmentManager().beginTransaction();
+                transaction3.replace(R.id.content_frame, new AppsListFragment());
+                appBarLayout
+                        .animate()
+                        .translationY(0)
+                        .setInterpolator(new DecelerateInterpolator(2))
+                        .start();
+
+                drawer.deselectEverything();
+                transaction3.commit();
+            } else {
+                if (path != null && !path.isEmpty()) {
+                    HybridFile file = new HybridFile(OpenMode.UNKNOWN, path);
+                    file.generateMode(MainActivity.this);
+                    if (file.isCloudDriveFile() && dataUtils.getAccounts().isEmpty()) {
+                        // not ready to serve cloud files
+                        goToMain(null);
+                    } else if (file.isDirectory(MainActivity.this) && !isCloudRefresh) {
+                        goToMain(path);
+                    } else {
+                        if (!isCloudRefresh) {
+                            goToMain(null);
+                        }
+                        if (file.isSmb() || file.isSftp()) {
+                            String authorisedPath =
+                                    SshClientUtils.formatPlainServerPathToAuthorised(dataUtils.getServers(), path);
+                            file.setPath(authorisedPath);
+                            LOG.info(
+                                    "Opening smb file from deeplink, modify plain path to authorised path {}",
+                                    authorisedPath
+                            );
+                        }
+                        file.openFile(this, true);
+                    }
+                } else if (!isCloudRefresh) {
+                    goToMain(null);
+                }
+            }
+        } else {
+            pasteHelper = savedInstanceState.getParcelable(PASTEHELPER_BUNDLE);
+            oppathe = savedInstanceState.getString(KEY_OPERATION_PATH);
+            oppathe1 = savedInstanceState.getString(KEY_OPERATED_ON_PATH);
+            oparrayList = savedInstanceState.getParcelableArrayList(KEY_OPERATIONS_PATH_LIST);
+            operation = savedInstanceState.getInt(KEY_OPERATION);
+            int selectedStorage = savedInstanceState.getInt(KEY_DRAWER_SELECTED, 0);
+            getDrawer().selectCorrectDrawerItem(selectedStorage);
+        }
+    }
+
+    @Override
+    @SuppressLint("CheckResult")
+    public void onPermissionGranted() {
+        drawer.refreshDrawer();
+        TabFragment tabFragment = getTabFragment();
+        boolean b = getBoolean(PREFERENCE_NEED_TO_SET_HOME);
+        // reset home and current paths according to new storages
+        if (b) {
+            TabHandler tabHandler = TabHandler.getInstance();
+            tabHandler
+                    .clear()
+                    .subscribe(
+                            () -> {
+                                if (tabFragment != null) {
+                                    tabFragment.refactorDrawerStorages(false, false);
+                                    Fragment main = tabFragment.getFragmentAtIndex(0);
+                                    if (main != null)
+                                        ((MainFragment) main).updateTabWithDb(tabHandler.findTab(1));
+                                    Fragment main1 = tabFragment.getFragmentAtIndex(1);
+                                    if (main1 != null)
+                                        ((MainFragment) main1).updateTabWithDb(tabHandler.findTab(2));
+                                }
+                                getPrefs().edit().putBoolean(PREFERENCE_NEED_TO_SET_HOME, false).commit();
+                            });
+        } else {
+            // just refresh list
+            if (tabFragment != null) {
+                Fragment main = tabFragment.getFragmentAtIndex(0);
+                if (main != null) ((MainFragment) main).updateList(false);
+                Fragment main1 = tabFragment.getFragmentAtIndex(1);
+                if (main1 != null) ((MainFragment) main1).updateList(false);
+            }
+        }
+    }
+
+    private void checkForExternalPermission() {
+        if (!checkStoragePermission()) {
+            requestAllFilesAccess(this);
+        }
+        if (!checkNotificationPermission()) {
+            requestNotificationPermission(true);
+        }
+    }
+
+    /**
+     * Checks for the action to take when Amaze receives an intent from external source
+     */
+    private void checkForExternalIntent(Intent intent) {
+        final String actionIntent = intent.getAction();
+        if (actionIntent == null) {
+            return;
+        }
+
+        final String type = intent.getType();
+
+        if (actionIntent.equals(Intent.ACTION_GET_CONTENT)) {
+            // file picker intent
+            mReturnIntent = true;
+            String text =
+                    intent.getBooleanExtra(Intent.EXTRA_ALLOW_MULTIPLE, false)
+                            ? getString(R.string.pick_files)
+                            : getString(R.string.pick_a_file);
+            Toast.makeText(this, text, Toast.LENGTH_LONG).show();
+
+            // disable screen rotation just for convenience purpose
+            // TODO: Support screen rotation when picking file
+            Utils.disableScreenRotation(this);
+        } else if (actionIntent.equals(RingtoneManager.ACTION_RINGTONE_PICKER)) {
+            // ringtone picker intent
+            mReturnIntent = true;
+            mRingtonePickerIntent = true;
+            Toast.makeText(this, getString(R.string.pick_a_file), Toast.LENGTH_LONG).show();
+
+            // disable screen rotation just for convenience purpose
+            // TODO: Support screen rotation when picking file
+            Utils.disableScreenRotation(this);
+        } else if (actionIntent.equals(Intent.ACTION_VIEW)) {
+            // zip viewer intent
+            Uri uri = intent.getData();
+
+            if (type != null
+                    && (type.equals(ARGS_INTENT_ACTION_VIEW_MIME_FOLDER)
+                    || type.equals(ARGS_INTENT_ACTION_VIEW_APPLICATION_ALL))) {
+                // support for syncting or intents from external apps that
+                // need to start file manager from a specific path
+
+                if (uri != null) {
+
+                    path = Utils.sanitizeInput(FileUtils.fromContentUri(uri).getAbsolutePath());
+                    scrollToFileName = intent.getStringExtra("com.amaze.fileutilities.AFM_LOCATE_FILE_NAME");
+                } else {
+                    // no data field, open home for the tab in later processing
+                    path = null;
+                }
+            } else if (FileUtils.isCompressedFile(Utils.sanitizeInput(uri.toString()))) {
+                // we don't have folder resource mime type set, supposed to be zip/rar
+                isCompressedOpen = true;
+                pathInCompressedArchive = Utils.sanitizeInput(uri.toString());
+                openCompressed(pathInCompressedArchive);
+            } else if (uri.getPath().startsWith("/open_file")) {
+                path = Utils.sanitizeInput(uri.getQueryParameter("path"));
+            } else {
+                LOG.warn(getString(R.string.error_cannot_find_way_open));
+            }
+        } else if (actionIntent.equals(Intent.ACTION_SEND)) {
+            if ("text/plain".equals(type)) {
+                initFabToSave(null);
+            } else {
+                // save a single file to filesystem
+                Uri uri = intent.getParcelableExtra(Intent.EXTRA_STREAM);
+                if (uri != null
+                        && uri.getScheme() != null
+                        && uri.getScheme().startsWith(ContentResolver.SCHEME_FILE)) {
+                    ArrayList<Uri> uris = new ArrayList<>();
+                    uris.add(uri);
+                    initFabToSave(uris);
+                } else {
+                    Toast.makeText(this, R.string.error_unsupported_or_null_uri, Toast.LENGTH_LONG).show();
+                }
+            }
+            // disable screen rotation just for convenience purpose
+            // TODO: Support screen rotation when saving a file
+            Utils.disableScreenRotation(this);
+        } else if (actionIntent.equals(Intent.ACTION_SEND_MULTIPLE) && type != null) {
+            // save multiple files to filesystem
+
+            ArrayList<Uri> arrayList = intent.getParcelableArrayListExtra(Intent.EXTRA_STREAM);
+            initFabToSave(arrayList);
+
+            // disable screen rotation just for convenience purpose
+            // TODO: Support screen rotation when saving a file
+            Utils.disableScreenRotation(this);
+        }
+    }
+
+    /**
+     * Initializes the floating action button to act as to save data from an external intent
+     */
+    private void initFabToSave(final List<Uri> uris) {
+        Utils.showThemedSnackbar(
+                this,
+                getString(R.string.select_save_location),
+                BaseTransientBottomBar.LENGTH_INDEFINITE,
+                R.string.save,
+                () -> saveExternalIntent(uris)
+        );
+    }
+
+    private void saveExternalIntent(final List<Uri> uris) {
+        executeWithMainFragment(
+                mainFragment -> {
+                    if (uris != null && !uris.isEmpty()) {
+                        File folder = new File(mainFragment.getCurrentPath());
+                        int result = mainActivityHelper.checkFolder(folder, MainActivity.this);
+                        if (result == WRITABLE_OR_ON_SDCARD) {
+                            FileUtil.writeUriToStorage(
+                                    MainActivity.this, uris, getContentResolver(), mainFragment.getCurrentPath());
+                            finish();
+                        } else {
+                            // Trigger SAF intent, keep uri until finish
+                            operation = SAVE_FILE;
+                            urisToBeSaved = uris;
+                            mainActivityHelper.checkFolder(folder, MainActivity.this);
+                        }
+                    } else {
+                        saveExternalIntentExtras();
+                    }
+                    Toast.makeText(
+                                    MainActivity.this,
+                                    getResources().getString(R.string.saving)
+                                            + " to "
+                                            + mainFragment.getCurrentPath(),
+                                    Toast.LENGTH_LONG
+                            )
+                            .show();
+                    finish();
+                    return null;
+                });
+    }
+
+    private void saveExternalIntentExtras() {
+        executeWithMainFragment(
+                mainFragment -> {
+                    Bundle extras = intent.getExtras();
+                    StringBuilder data = new StringBuilder();
+                    if (!Utils.isNullOrEmpty(extras.getString(Intent.EXTRA_SUBJECT))) {
+                        data.append(extras.getString(Intent.EXTRA_SUBJECT));
+                    }
+                    if (!Utils.isNullOrEmpty(extras.getString(Intent.EXTRA_TEXT))) {
+                        data.append(AppConstants.NEW_LINE).append(extras.getString(Intent.EXTRA_TEXT));
+                    }
+                    String fileName = Long.toString(System.currentTimeMillis());
+                    com.amaze.filemanager.application.AmazeFileManagerApplication.getInstance()
+                            .runInBackground(
+                                    () ->
+                                            MakeFileOperation.mktextfile(
+                                                    data.toString(), mainFragment.getCurrentPath(), fileName));
+                    return null;
+                });
+    }
+
+    /**
+     * Initializes an interactive shell, which will stay throughout the app lifecycle.
+     */
+    private void initializeInteractiveShell() {
+        if (isRootExplorer()) {
+            // Enable mount-master flag when invoking su command, to force su run in the global mount
+            // namespace. See https://github.com/topjohnwu/libsu/issues/75
+            Shell.setDefaultBuilder(Shell.Builder.create().setFlags(Shell.FLAG_MOUNT_MASTER));
+            Shell.getShell();
+        }
+    }
+
+    /**
+     * @return paths to all available volumes in the system (include emulated)
+     */
+    public synchronized ArrayList<StorageDirectoryParcelable> getStorageDirectories() {
+        ArrayList<StorageDirectoryParcelable> volumes;
+        volumes = getStorageDirectoriesNew();
+
+        if (isRootExplorer()) {
+            volumes.add(
+                    new StorageDirectoryParcelable(
+                            "/",
+                            getResources().getString(R.string.root_directory),
+                            R.drawable.ic_drawer_root_white
+                    ));
+        }
+        return volumes;
+    }
+
+    /**
+     * @return All available storage volumes (including internal storage, SD-Cards and USB devices)
+     */
+    public synchronized ArrayList<StorageDirectoryParcelable> getStorageDirectoriesNew() {
+        // Final set of paths
+        ArrayList<StorageDirectoryParcelable> volumes = new ArrayList<>();
+        StorageManager sm = getSystemService(StorageManager.class);
+        for (StorageVolume volume : sm.getStorageVolumes()) {
+            if (!volume.getState().equalsIgnoreCase(Environment.MEDIA_MOUNTED)
+                    && !volume.getState().equalsIgnoreCase(Environment.MEDIA_MOUNTED_READ_ONLY)) {
+                continue;
+            }
+            File path = Utils.getVolumeDirectory(volume);
+            String name = volume.getDescription(this);
+            if (INTERNAL_SHARED_STORAGE.equalsIgnoreCase(name)) {
+                name = getString(R.string.storage_internal);
+            }
+            int icon;
+            if (!volume.isRemovable()) {
+                icon = R.drawable.ic_phone_android_white_24dp;
+            } else {
+                // HACK: There is no reliable way to distinguish USB and SD external storage
+                // However it is often enough to check for "USB" String
+                if (name.toUpperCase().contains("USB") || path.getPath().toUpperCase().contains("USB")) {
+                    icon = R.drawable.ic_usb_white_24dp;
+                } else {
+                    icon = R.drawable.ic_sd_storage_white_24dp;
+                }
+            }
+            volumes.add(new StorageDirectoryParcelable(path.getPath(), name, icon));
+        }
+        return volumes;
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (!drawer.isLocked() && drawer.isOpen()) {
+            drawer.close();
+            return;
+        }
+
+        Fragment fragment = getFragmentAtFrame();
+        if (getAppbar().getSearchView().isShown()) {
+            // hide search view if visible, with an animation
+            getAppbar().getSearchView().hideSearchView();
+        } else if (fragment instanceof TabFragment) {
+            if (floatingActionButton.isOpen()) {
+                floatingActionButton.close(true);
+            } else {
+                executeWithMainFragment(
+                        mainFragment -> {
+                            mainFragment.goBack();
+                            return null;
+                        });
+            }
+        } else if (fragment instanceof CompressedExplorerFragment) {
+            CompressedExplorerFragment compressedExplorerFragment =
+                    (CompressedExplorerFragment) getFragmentAtFrame();
+            if (compressedExplorerFragment.mActionMode == null) {
+                if (compressedExplorerFragment.canGoBack()) {
+                    compressedExplorerFragment.goBack();
+                } else if (isCompressedOpen) {
+                    isCompressedOpen = false;
+                    finish();
+                } else {
+                    FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
+                    fragmentTransaction.setCustomAnimations(R.anim.slide_out_bottom, R.anim.slide_out_bottom);
+                    fragmentTransaction.remove(compressedExplorerFragment);
+                    fragmentTransaction.commit();
+                    supportInvalidateOptionsMenu();
+                    showFab();
+                }
+            } else {
+                compressedExplorerFragment.mActionMode.finish();
+            }
+        } else if (fragment instanceof FtpServerFragment) {
+            // returning back from FTP server
+            if (path != null && !path.isEmpty()) {
+                HybridFile file = new HybridFile(OpenMode.UNKNOWN, path);
+                file.generateMode(this);
+                if (file.isDirectory(this)) goToMain(path);
+                else {
+                    goToMain(null);
+                    FileUtils.openFile(new File(path), this, getPrefs());
+                }
+            } else {
+                goToMain(null);
+            }
+        } else {
+            goToMain(null);
+        }
+    }
+
+    public void invalidatePasteSnackbar(boolean showSnackbar) {
+        if (pasteHelper != null) {
+            pasteHelper.invalidateSnackbar(this, showSnackbar);
+        }
+    }
+
+    public void exit() {
+        if (backPressedToExitOnce) {
+            NetCopyClientConnectionPool.INSTANCE.shutdown();
+            finish();
+            if (isRootExplorer()) {
+                closeInteractiveShell();
+            }
+        } else {
+            this.backPressedToExitOnce = true;
+            final Toast toast = Toast.makeText(this, getString(R.string.press_again), Toast.LENGTH_SHORT);
+            this.toast = new WeakReference<>(toast);
+            toast.show();
+            new Handler()
+                    .postDelayed(
+                            () -> backPressedToExitOnce = false,
+                            2000
+                    );
+        }
+    }
+
+    public void goToMain(String path) {
+        goToMain(path, false);
+    }
+
+    /**
+     * Sets up the main view with a {@link MainFragment}
+     *
+     * @param path    The path to which to go in the {@link MainFragment}
+     * @param hideFab Whether the FAB should be hidden in the new created {@link MainFragment} or not
+     */
+    public void goToMain(String path, boolean hideFab) {
+        FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+
+        TabFragment tabFragment = new TabFragment();
+        if (intent != null && intent.getAction() != null) {
+            if (INTENT_ACTION_OPEN_QUICK_ACCESS.equals(intent.getAction())) {
+                path = "5";
+            } else if (INTENT_ACTION_OPEN_RECENT.equals(intent.getAction())) {
+                path = "6";
+            }
+        }
+        Bundle b = new Bundle();
+        if (path != null && !path.isEmpty()) {
+            b.putString("path", path);
+        }
+        // This boolean will be given to the newly created MainFragment
+        b.putBoolean(MainFragment.BUNDLE_HIDE_FAB, hideFab);
+        tabFragment.setArguments(b);
+        transaction.replace(R.id.content_frame, tabFragment);
+        // Commit the transaction
+        transaction.addToBackStack("tabt" + 1);
+        transaction.commitAllowingStateLoss();
+        appbar.setTitle(null);
+
+        if (isCompressedOpen && pathInCompressedArchive != null) {
+            openCompressed(pathInCompressedArchive);
+            pathInCompressedArchive = null;
+        }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        MenuInflater menuInflater = getMenuInflater();
+        menuInflater.inflate(R.menu.activity_extra, menu);
+
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onPrepareOptionsMenu(Menu menu) {
+        MenuItem s = menu.findItem(R.id.view);
+        MenuItem search = menu.findItem(R.id.search);
+        Fragment fragment = getFragmentAtFrame();
+        if (fragment instanceof TabFragment) {
+            appbar.setTitle(R.string.appbar_name);
+            if (getBoolean(PREFERENCE_VIEW)) {
+                s.setTitle(getResources().getString(R.string.gridview));
+            } else {
+                s.setTitle(getResources().getString(R.string.listview));
+            }
+            try {
+                executeWithMainFragment(
+                        mainFragment -> {
+                            if (mainFragment.getMainFragmentViewModel().isList()) {
+                                s.setTitle(R.string.gridview);
+                            } else {
+                                s.setTitle(R.string.listview);
+                            }
+                            appbar
+                                    .getBottomBar()
+                                    .updatePath(
+                                            mainFragment.getCurrentPath(),
+                                            mainFragment.getMainFragmentViewModel().getOpenMode(),
+                                            mainFragment.getMainFragmentViewModel().getFolderCount(),
+                                            mainFragment.getMainFragmentViewModel().getFileCount(),
+                                            mainFragment
+                                    );
+                            return null;
+                        });
+            } catch (Exception e) {
+                LOG.warn("failure while preparing options menu", e);
+            }
+
+            appbar.getBottomBar().setClickListener();
+
+            search.setVisible(true);
+            if (indicator_layout != null) indicator_layout.setVisibility(View.VISIBLE);
+            menu.findItem(R.id.search).setVisible(true);
+            menu.findItem(R.id.home).setVisible(true);
+            menu.findItem(R.id.history).setVisible(true);
+            menu.findItem(R.id.sethome).setVisible(true);
+            menu.findItem(R.id.sort).setVisible(true);
+            menu.findItem(R.id.hiddenitems).setVisible(true);
+            menu.findItem(R.id.view).setVisible(true);
+            menu.findItem(R.id.extract).setVisible(false);
+            invalidatePasteSnackbar(true);
+            findViewById(R.id.buttonbarframe).setVisibility(View.VISIBLE);
+        } else if (fragment instanceof AppsListFragment
+                || fragment instanceof ProcessViewerFragment
+                || fragment instanceof FtpServerFragment) {
+            appBarLayout.setExpanded(true);
+            menu.findItem(R.id.sethome).setVisible(false);
+            if (indicator_layout != null) indicator_layout.setVisibility(View.GONE);
+            findViewById(R.id.buttonbarframe).setVisibility(View.GONE);
+            menu.findItem(R.id.search).setVisible(false);
+            menu.findItem(R.id.home).setVisible(false);
+            menu.findItem(R.id.history).setVisible(false);
+            menu.findItem(R.id.extract).setVisible(false);
+            if (fragment instanceof ProcessViewerFragment) {
+                menu.findItem(R.id.sort).setVisible(false);
+            } else if (fragment instanceof FtpServerFragment) {
+                menu.findItem(R.id.sort).setVisible(false);
+            } else {
+                menu.findItem(R.id.dsort).setVisible(false);
+                menu.findItem(R.id.sortby).setVisible(false);
+            }
+            menu.findItem(R.id.hiddenitems).setVisible(false);
+            menu.findItem(R.id.view).setVisible(false);
+            invalidatePasteSnackbar(false);
+        } else if (fragment instanceof CompressedExplorerFragment) {
+            appbar.setTitle(R.string.appbar_name);
+            menu.findItem(R.id.sethome).setVisible(false);
+            if (indicator_layout != null) indicator_layout.setVisibility(View.GONE);
+            getAppbar().getBottomBar().resetClickListener();
+            menu.findItem(R.id.search).setVisible(false);
+            menu.findItem(R.id.home).setVisible(false);
+            menu.findItem(R.id.history).setVisible(false);
+            menu.findItem(R.id.sort).setVisible(false);
+            menu.findItem(R.id.hiddenitems).setVisible(false);
+            menu.findItem(R.id.view).setVisible(false);
+            menu.findItem(R.id.extract).setVisible(true);
+            invalidatePasteSnackbar(false);
+        }
+        return super.onPrepareOptionsMenu(menu);
+    }
+
+    // called when the user exits the action mode
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        // The action bar home/up action should open or close the drawer.
+        // ActionBarDrawerToggle will take care of this.
+        if (drawer.onOptionsItemSelected(item)) return true;
+        // Same thing goes to other Fragments loaded.
+        // If they have handled the options, we don't need to.
+        if (getFragmentAtFrame().onOptionsItemSelected(item)) return true;
+
+        // Handle action buttons
+        executeWithMainFragment(
+                mainFragment -> {
+                    switch (item.getItemId()) {
+                        case R.id.home:
+                            mainFragment.home();
+                            break;
+                        case R.id.history:
+                            HistoryDialog.showHistoryDialog(this, mainFragment);
+                            break;
+                        case R.id.sethome:
+                            if (mainFragment.getMainFragmentViewModel().getOpenMode() != OpenMode.FILE
+                                    && mainFragment.getMainFragmentViewModel().getOpenMode() != OpenMode.ROOT) {
+                                Toast.makeText(mainActivity, R.string.not_allowed, Toast.LENGTH_SHORT).show();
+                                break;
+                            }
+                            final MaterialDialog dialog =
+                                    GeneralDialogCreation.showBasicDialog(
+                                            mainActivity,
+                                            R.string.question_set_path_as_home,
+                                            R.string.set_as_home,
+                                            R.string.yes,
+                                            R.string.no
+                                    );
+                            dialog
+                                    .getActionButton(DialogAction.POSITIVE)
+                                    .setOnClickListener(
+                                            (v) -> {
+                                                mainFragment
+                                                        .getMainFragmentViewModel()
+                                                        .setHome(mainFragment.getCurrentPath());
+                                                updatePaths(mainFragment.getMainFragmentViewModel().getNo());
+                                                dialog.dismiss();
+                                            });
+                            dialog.show();
+                            break;
+                        case R.id.exit:
+                            finish();
+                            break;
+                        case R.id.sortby:
+                            GeneralDialogCreation.showSortDialog(mainFragment, getAppTheme(), getPrefs());
+                            break;
+                        case R.id.dsort:
+                            String[] sort = getResources().getStringArray(R.array.directorysortmode);
+                            MaterialDialog.Builder builder = new MaterialDialog.Builder(mainActivity);
+                            builder.theme(getAppTheme().getMaterialDialogTheme());
+                            builder.title(R.string.directorysort);
+                            int current =
+                                    Integer.parseInt(
+                                            getPrefs()
+                                                    .getString(PreferencesConstants.PREFERENCE_DIRECTORY_SORT_MODE, "0"));
+
+                            builder
+                                    .items(sort)
+                                    .itemsCallbackSingleChoice(
+                                            current,
+                                            (dialog1, view, which, text) -> {
+                                                getPrefs()
+                                                        .edit()
+                                                        .putString(
+                                                                PreferencesConstants.PREFERENCE_DIRECTORY_SORT_MODE, "" + which)
+                                                        .commit();
+                                                mainFragment
+                                                        .getMainFragmentViewModel()
+                                                        .initSortModes(
+                                                                SortHandler.getSortType(
+                                                                        this, mainFragment.getMainFragmentViewModel().getCurrentPath()),
+                                                                getPrefs()
+                                                        );
+                                                mainFragment.updateList(false);
+                                                dialog1.dismiss();
+                                                return true;
+                                            }
+                                    );
+                            builder.build().show();
+                            break;
+                        case R.id.hiddenitems:
+                            HiddenFilesDialog.showHiddenDialog(this, mainFragment);
+                            break;
+                        case R.id.view:
+                            int pathLayout =
+                                    dataUtils.getListOrGridForPath(mainFragment.getCurrentPath(), DataUtils.LIST);
+                            if (mainFragment.getMainFragmentViewModel().isList()) {
+                                if (pathLayout == DataUtils.LIST) {
+                                    com.amaze.filemanager.application.AmazeFileManagerApplication.getInstance()
+                                            .runInBackground(
+                                                    () -> utilsHandler.removeFromDatabase(
+                                                            new OperationData(
+                                                                    UtilsHandler.Operation.LIST, mainFragment.getCurrentPath())));
+                                }
+                                utilsHandler.saveToDatabase(
+                                        new OperationData(UtilsHandler.Operation.GRID, mainFragment.getCurrentPath()));
+
+                                dataUtils.setPathAsGridOrList(mainFragment.getCurrentPath(), DataUtils.GRID);
+                            } else {
+                                if (pathLayout == DataUtils.GRID) {
+                                    com.amaze.filemanager.application.AmazeFileManagerApplication.getInstance()
+                                            .runInBackground(
+                                                    () -> utilsHandler.removeFromDatabase(
+                                                            new OperationData(
+                                                                    UtilsHandler.Operation.GRID, mainFragment.getCurrentPath())));
+                                }
+
+                                utilsHandler.saveToDatabase(
+                                        new OperationData(UtilsHandler.Operation.LIST, mainFragment.getCurrentPath()));
+
+                                dataUtils.setPathAsGridOrList(mainFragment.getCurrentPath(), DataUtils.LIST);
+                            }
+                            mainFragment.switchView();
+                            break;
+                        case R.id.extract:
+                            Fragment fragment1 = getFragmentAtFrame();
+                            if (fragment1 instanceof CompressedExplorerFragment) {
+                                mainActivityHelper.extractFile(
+                                        ((CompressedExplorerFragment) fragment1).compressedFile);
+                            }
+                            break;
+                        case R.id.search:
+                            getAppbar().getSearchView().revealSearchView();
+                            break;
+                    }
+                    return null;
+                },
+                false
+        );
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    protected void onPostCreate(Bundle savedInstanceState) {
+        super.onPostCreate(savedInstanceState);
+        // Sync the toggle state after onRestoreInstanceState has occurred.
+        drawer.syncState();
+    }
+
+    @Override
+    public void onConfigurationChanged(@androidx.annotation.NonNull Configuration newConfig) {
+        super.onConfigurationChanged(newConfig);
+        // Pass any configuration change to the drawer toggls
+        drawer.onConfigurationChanged(newConfig);
+    }
+
+    @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putInt(KEY_DRAWER_SELECTED, getDrawer().getDrawerSelectedItem());
+        outState.putBoolean(KEY_SELECTED_LIST_ITEM, listItemSelected);
+        if (pasteHelper != null) {
+            outState.putParcelable(PASTEHELPER_BUNDLE, pasteHelper);
+        }
+
+        if (oppathe != null) {
+            outState.putString(KEY_OPERATION_PATH, oppathe);
+            outState.putString(KEY_OPERATED_ON_PATH, oppathe1);
+            outState.putParcelableArrayList(KEY_OPERATIONS_PATH_LIST, (oparrayList));
+            outState.putInt(KEY_OPERATION, operation);
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        unregisterReceiver(mainActivityHelper.mNotificationReceiver);
+        unregisterReceiver(receiver2);
+        unregisterReceiver(mOtgReceiver);
+
+        final Toast toast = this.toast.get();
+        if (toast != null) {
+            toast.cancel();
+        }
+        this.toast = new WeakReference<>(null);
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (materialDialog != null && !materialDialog.isShowing()) {
+            materialDialog.show();
+            materialDialog = null;
+        }
+
+        drawer.refreshDrawer();
+        drawer.refactorDrawerLockMode();
+
+        IntentFilter newFilter = new IntentFilter();
+        newFilter.addAction(Intent.ACTION_MEDIA_MOUNTED);
+        newFilter.addAction(Intent.ACTION_MEDIA_UNMOUNTED);
+        newFilter.addDataScheme(ContentResolver.SCHEME_FILE);
+        registerReceiver(mainActivityHelper.mNotificationReceiver, newFilter);
+        registerReceiver(receiver2, new IntentFilter(TAG_INTENT_FILTER_GENERAL));
+
+        updateUsbInformation();
+    }
+
+    /**
+     * Updates everything related to USB devices MUST ALWAYS be called after onResume()
+     */
+    private void updateUsbInformation() {
+        boolean isInformationUpdated = false;
+        List<UsbOtgRepresentation> connectedDevices = OTGUtil.getMassStorageDevicesConnected(this);
+
+        if (!connectedDevices.isEmpty()) {
+            if (SingletonUsbOtg.getInstance().getUsbOtgRoot() != null
+                    && OTGUtil.isUsbUriAccessible(this)) {
+                for (UsbOtgRepresentation device : connectedDevices) {
+                    if (SingletonUsbOtg.getInstance().checkIfRootIsFromDevice(device)) {
+                        isInformationUpdated = true;
+                        break;
+                    }
+                }
+
+                if (!isInformationUpdated) {
+                    SingletonUsbOtg.getInstance().resetUsbOtgRoot();
+                }
+            }
+
+            if (!isInformationUpdated) {
+                SingletonUsbOtg.getInstance().setConnectedDevice(connectedDevices.get(0));
+                isInformationUpdated = true;
+            }
+        }
+
+        if (!isInformationUpdated) {
+            SingletonUsbOtg.getInstance().resetUsbOtgRoot();
+            drawer.refreshDrawer();
+        }
+
+        // Registering intent filter for OTG
+        IntentFilter otgFilter = new IntentFilter();
+        otgFilter.addAction(UsbManager.ACTION_USB_DEVICE_ATTACHED);
+        otgFilter.addAction(UsbManager.ACTION_USB_DEVICE_DETACHED);
+        registerReceiver(mOtgReceiver, otgFilter);
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_MENU) {
+
+            // return 'true' to prevent further propagation of the key event
+            return true;
+        }
+
+        return super.onKeyDown(keyCode, event);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // TODO: 6/5/2017 Android may choose to not call this method before destruction
+        // TODO: https://developer.android.com/reference/android/app/Activity.html#onDestroy%28%29
+        closeInteractiveShell();
+        NetCopyClientConnectionPool.INSTANCE.shutdown();
+    }
+
+    /**
+     * Closes the interactive shell and threads associated
+     */
+    private void closeInteractiveShell() {
+        if (isRootExplorer()) {
+            // close interactive shell
+            try {
+                Shell.getShell().close();
+            } catch (IOException e) {
+                LOG.error("Error closing Shell", e);
+            }
+        }
+    }
+
+    public void updatePaths(int pos) {
+        TabFragment tabFragment = getTabFragment();
+        if (tabFragment != null) tabFragment.updatePaths(pos);
+    }
+
+    public void openCompressed(String path) {
+        appBarLayout.animate().translationY(0).setInterpolator(new DecelerateInterpolator(2)).start();
+        FragmentTransaction fragmentTransaction = getSupportFragmentManager().beginTransaction();
+        fragmentTransaction.setCustomAnimations(R.anim.slide_in_top, R.anim.slide_in_bottom);
+        Fragment zipFragment = new CompressedExplorerFragment();
+        Bundle bundle = new Bundle();
+        bundle.putString(CompressedExplorerFragment.KEY_PATH, path);
+        zipFragment.setArguments(bundle);
+        fragmentTransaction.add(R.id.content_frame, zipFragment);
+        fragmentTransaction.commitAllowingStateLoss();
+    }
+
+    public @Nullable MainFragment getCurrentMainFragment() {
+        TabFragment tab = getTabFragment();
+
+        if (tab != null && tab.getCurrentTabFragment() instanceof MainFragment) {
+            return (MainFragment) tab.getCurrentTabFragment();
+        } else return null;
+    }
+
+    public TabFragment getTabFragment() {
+        Fragment fragment = getFragmentAtFrame();
+
+        if (!(fragment instanceof TabFragment)) return null;
+        else return (TabFragment) fragment;
+    }
+
+    public Fragment getFragmentAtFrame() {
+        return getSupportFragmentManager().findFragmentById(R.id.content_frame);
+    }
+
+    public void setPagingEnabled(boolean b) {
+        getTabFragment().setPagingEnabled(b);
+    }
+
+    public SpeedDialView getFAB() {
+        return floatingActionButton;
+    }
+
+    public void showFab() {
+        if (getCurrentMainFragment() != null && getCurrentMainFragment().getHideFab()) {
+            hideFab();
+        } else {
+            showFab(getFAB());
+        }
+    }
+
+    private void showFab(SpeedDialView fab) {
+        fab.setVisibility(View.VISIBLE);
+        fab.show();
+        CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) fab.getLayoutParams();
+        params.setBehavior(new SpeedDialView.ScrollingViewSnackbarBehavior());
+        fab.requestLayout();
+    }
+
+    public void hideFab() {
+        hideFab(getFAB());
+    }
+
+    private void hideFab(SpeedDialView fab) {
+        fab.setVisibility(View.GONE);
+        fab.hide();
+        CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) fab.getLayoutParams();
+        params.setBehavior(new SpeedDialView.NoBehavior());
+        fab.requestLayout();
+    }
+
+    public AppBar getAppbar() {
+        return appbar;
+    }
+
+    public Drawer getDrawer() {
+        return drawer;
+    }
+
+    protected void onActivityResult(int requestCode, int responseCode, Intent intent) {
+        super.onActivityResult(requestCode, responseCode, intent);
+        if (requestCode == 3) {
+            Uri treeUri;
+            if (responseCode == Activity.RESULT_OK) {
+                // Get Uri from Storage Access Framework.
+                treeUri = intent.getData();
+                // Persist URI - this is required for verification of writability.
+                if (treeUri != null)
+                    getPrefs()
+                            .edit()
+                            .putString(PreferencesConstants.PREFERENCE_URI, treeUri.toString())
+                            .apply();
+            } else {
+                // If not confirmed SAF, or if still not writable, then revert settings.
+        /* DialogUtil.displayError(getActivity(), R.string.message_dialog_cannot_write_to_folder_saf, false, currentFolder);
+        ||!FileUtil.isWritableNormalOrSaf(currentFolder)*/
+                return;
+            }
+
+            // After confirmation, update stored value of folder.
+            // Persist access permissions.
+
+            getContentResolver()
+                    .takePersistableUriPermission(
+                            treeUri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    );
+
+
+            executeWithMainFragment(
+                    mainFragment -> {
+                        switch (operation) {
+                            case DELETE: // deletion
+                                new DeleteTask(mainActivity, true).execute((oparrayList));
+                                break;
+                            case COPY: // copying
+                                // legacy compatibility
+                                if (oparrayList != null && !oparrayList.isEmpty()) {
+                                    oparrayListList = new ArrayList<>();
+                                    oparrayListList.add(oparrayList);
+                                    oparrayList = null;
+                                    oppatheList = new ArrayList<>();
+                                    oppatheList.add(oppathe);
+                                    oppathe = "";
+                                }
+                                for (int i = 0; i < oparrayListList.size(); i++) {
+                                    ArrayList<HybridFileParcelable> sourceList = oparrayListList.get(i);
+                                    Intent intent1 = new Intent(this, CopyService.class);
+                                    intent1.putExtra(CopyService.TAG_COPY_SOURCES, sourceList);
+                                    intent1.putExtra(CopyService.TAG_COPY_TARGET, oppatheList.get(i));
+                                    ServiceWatcherUtil.runService(this, intent1);
+                                }
+                                break;
+                            case MOVE: // moving
+                                // legacy compatibility
+                                if (oparrayList != null && !oparrayList.isEmpty()) {
+                                    oparrayListList = new ArrayList<>();
+                                    oparrayListList.add(oparrayList);
+                                    oparrayList = null;
+                                    oppatheList = new ArrayList<>();
+                                    oppatheList.add(oppathe);
+                                    oppathe = "";
+                                }
+
+                                TaskKt.fromTask(
+                                        new MoveFilesTask(
+                                                oparrayListList,
+                                                isRootExplorer(),
+                                                mainFragment.getCurrentPath(),
+                                                this,
+                                                OpenMode.FILE,
+                                                oppatheList
+                                        ));
+                                break;
+                            case NEW_FOLDER: // mkdir
+                                mainActivityHelper.mkDir(
+                                        new HybridFile(OpenMode.FILE, oppathe),
+                                        RootHelper.generateBaseFile(new File(oppathe), true),
+                                        mainFragment
+                                );
+                                break;
+                            case RENAME:
+                                mainActivityHelper.rename(
+                                        mainFragment.getMainFragmentViewModel().getOpenMode(),
+                                        (oppathe),
+                                        (oppathe1),
+                                        null,
+                                        false,
+                                        mainActivity,
+                                        isRootExplorer()
+                                );
+                                mainFragment.updateList(false);
+                                break;
+                            case NEW_FILE:
+                                mainActivityHelper.mkFile(
+                                        new HybridFile(OpenMode.FILE, oppathe),
+                                        new HybridFile(OpenMode.FILE, oppathe),
+                                        mainFragment
+                                );
+                                break;
+                            case EXTRACT:
+                                mainActivityHelper.extractFile(new File(oppathe));
+                                break;
+                            case COMPRESS:
+                                mainActivityHelper.compressFiles(new File(oppathe), oparrayList);
+                                break;
+                            case SAVE_FILE:
+                                FileUtil.writeUriToStorage(
+                                        this, urisToBeSaved, getContentResolver(), mainFragment.getCurrentPath());
+                                urisToBeSaved = null;
+                                finish();
+                                break;
+                            default:
+                                LogHelper.logOnProductionOrCrash("Incorrect value for switch");
+                        }
+                        return null;
+                    },
+                    true
+            );
+            operation = UNDEFINED;
+        } else if (requestCode == REQUEST_CODE_SAF) {
+            executeWithMainFragment(
+                    mainFragment -> {
+                        if (responseCode == Activity.RESULT_OK && intent.getData() != null) {
+                            // otg access
+                            Uri usbOtgRoot = intent.getData();
+                            SingletonUsbOtg.getInstance().setUsbOtgRoot(usbOtgRoot);
+                            mainFragment.loadlist(OTGUtil.PREFIX_OTG, false, OpenMode.OTG, true);
+                            drawer.closeIfNotLocked();
+                            if (drawer.isLocked()) drawer.onDrawerClosed();
+                        } else if (requestCode == REQUEST_CODE_SAF_FTP) {
+                            FtpServerFragment ftpServerFragment = (FtpServerFragment) getFragmentAtFrame();
+                            ftpServerFragment.changeFTPServerPath(intent.getData().toString());
+                            Toast.makeText(this, R.string.ftp_path_change_success, Toast.LENGTH_SHORT).show();
+                        } else {
+                            Toast.makeText(this, R.string.error, Toast.LENGTH_SHORT).show();
+                            // otg access not provided
+                            drawer.resetPendingPath();
+                        }
+                        return null;
+                    },
+                    true
+            );
+        }
+    }
+
+    void initialisePreferences() {
+        currentTab = getCurrentTab();
+        skinStatusBar = PreferenceUtils.getStatusColor(getPrimary());
+    }
+
+    void initialiseViews() {
+
+        appbar = new AppBar(this, getPrefs());
+        appBarLayout = getAppbar().getAppbarLayout();
+
+        setSupportActionBar(getAppbar().getToolbar());
+        drawer = new Drawer(this);
+
+        indicator_layout = findViewById(R.id.indicator_layout);
+
+        getSupportActionBar().setDisplayShowTitleEnabled(false);
+        fabBgView = findViewById(R.id.fabs_overlay_layout);
+
+        switch (getAppTheme()) {
+            case DARK:
+                fabBgView.setBackgroundResource(R.drawable.fab_shadow_dark);
+                break;
+            case BLACK:
+                fabBgView.setBackgroundResource(R.drawable.fab_shadow_black);
+                break;
+        }
+
+        fabBgView.setOnClickListener(
+                view -> {
+                    if (getAppbar().getSearchView().isEnabled())
+                        getAppbar().getSearchView().hideSearchView();
+                });
+
+        //    drawer.setDrawerHeaderBackground();
+    }
+
+    /**
+     * Call this method when you need to update the MainActivity view components' colors based on
+     * update in the {@link MainActivity#currentTab} Warning - All the variables should be initialised
+     * before calling this method!
+     */
+    public void updateViews(ColorDrawable colorDrawable) {
+        // appbar view color
+        appbar.getBottomBar().setBackgroundColor(colorDrawable.getColor());
+        // action bar color
+        mainActivity.getSupportActionBar().setBackgroundDrawable(colorDrawable);
+
+        drawer.setBackgroundColor(colorDrawable.getColor());
+
+
+        // for lollipop devices, the status bar color
+        mainActivity.getWindow().setStatusBarColor(colorDrawable.getColor());
+        if (getBoolean(PREFERENCE_COLORED_NAVIGATION)) {
+            mainActivity
+                    .getWindow()
+                    .setNavigationBarColor(PreferenceUtils.getStatusColor(colorDrawable.getColor()));
+        } else {
+            if (getAppTheme().equals(AppTheme.LIGHT)) {
+                mainActivity
+                        .getWindow()
+                        .setNavigationBarColor(Utils.getColor(this, android.R.color.white));
+            } else if (getAppTheme().equals(AppTheme.BLACK)) {
+                mainActivity
+                        .getWindow()
+                        .setNavigationBarColor(Utils.getColor(this, android.R.color.black));
+            } else {
+                mainActivity
+                        .getWindow()
+                        .setNavigationBarColor(Utils.getColor(this, R.color.holo_dark_background));
+            }
+        }
+    }
+
+    void initialiseFab() {
+        int colorAccent = getAccent();
+
+        floatingActionButton = findViewById(R.id.fabs_menu);
+        floatingActionButton.setMainFabClosedBackgroundColor(colorAccent);
+        floatingActionButton.setMainFabOpenedBackgroundColor(colorAccent);
+        initializeFabActionViews();
+    }
+
+    public void initializeFabActionViews() {
+        // NOTE: SpeedDial inverts insert index than FABsmenu
+        FabWithLabelView newFileFab =
+                initFabTitle(R.id.menu_new_file, R.string.file, R.drawable.ic_insert_drive_file_white_48dp);
+        FabWithLabelView newFolderFab =
+                initFabTitle(R.id.menu_new_folder, R.string.folder, R.drawable.folder_fab);
+
+        floatingActionButton.setOnActionSelectedListener(
+                actionItem -> {
+                    MainFragment mainFragment = getCurrentMainFragment();
+
+                    if (mainFragment == null) return false;
+
+                    String path = mainFragment.getCurrentPath();
+
+                    MainFragmentViewModel mainFragmentViewModel = mainFragment.getMainFragmentViewModel();
+
+                    if (mainFragmentViewModel == null) return false;
+
+                    OpenMode openMode = mainFragmentViewModel.getOpenMode();
+
+                    int id = actionItem.getId();
+
+                    if (id == R.id.menu_new_folder)
+                        mainActivity.mainActivityHelper.mkdir(openMode, path, mainFragment);
+                    else if (id == R.id.menu_new_file)
+                        mainActivity.mainActivityHelper.mkfile(openMode, path, mainFragment);
+                    else if (id == R.id.menu_new_cloud)
+                        new CloudSheetFragment()
+                                .show(mainActivity.getSupportFragmentManager(), CloudSheetFragment.TAG_FRAGMENT);
+
+                    floatingActionButton.close(true);
+                    return true;
+                });
+
+
+        floatingActionButton.setOnFocusChangeListener(new CustomZoomFocusChange());
+        floatingActionButton.getMainFab().setOnFocusChangeListener(new CustomZoomFocusChange());
+        floatingActionButton.setOnKeyListener(
+                (v, keyCode, event) -> {
+                    if (event.getAction() == KeyEvent.ACTION_DOWN) {
+                        if (event.getKeyCode() == KeyEvent.KEYCODE_DPAD_RIGHT) {
+                            if (getCurrentTab() == 0 && getFAB().isFocused()) {
+                                getTabFragment().setCurrentItem(1);
+                            }
+                        } else if (event.getKeyCode() == KeyEvent.KEYCODE_DPAD_LEFT) {
+                            findViewById(R.id.content_frame).requestFocus();
+                        } else if (event.getKeyCode() == KeyEvent.KEYCODE_DPAD_DOWN) {
+                            if (pasteHelper != null
+                                    && pasteHelper.getSnackbar() != null
+                                    && pasteHelper.getSnackbar().isShown())
+                                pasteHelper.getSnackbar().getView()
+                                        .findViewById(R.id.snackBarActionButton)
+                                        .requestFocus();
+                        } else if (event.getKeyCode() == KeyEvent.KEYCODE_BACK) {
+                            onBackPressed();
+                        } else {
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+
+        newFileFab.setNextFocusUpId(newFolderFab.getId());
+        newFileFab.setOnFocusChangeListener(new CustomZoomFocusChange());
+        newFolderFab.setNextFocusDownId(newFileFab.getId());
+        newFolderFab.setOnFocusChangeListener(new CustomZoomFocusChange());
+    }
+
+    private FabWithLabelView initFabTitle(
+            @IdRes int id, @StringRes int fabTitle, @DrawableRes int icon
+    ) {
+        int iconSkin = getCurrentColorPreference().getIconSkin();
+
+        SpeedDialActionItem.Builder builder =
+                new SpeedDialActionItem.Builder(id, icon)
+                        .setLabel(fabTitle)
+                        .setFabBackgroundColor(iconSkin);
+
+        switch (getAppTheme()) {
+            case LIGHT:
+                fabBgView.setBackgroundResource(R.drawable.fab_shadow_light);
+                break;
+            case DARK:
+                builder
+                        .setLabelBackgroundColor(Utils.getColor(this, R.color.holo_dark_background))
+                        .setLabelColor(Utils.getColor(this, R.color.text_dark));
+                fabBgView.setBackgroundResource(R.drawable.fab_shadow_dark);
+                break;
+            case BLACK:
+                builder
+                        .setLabelBackgroundColor(Color.BLACK)
+                        .setLabelColor(Utils.getColor(this, R.color.text_dark));
+                fabBgView.setBackgroundResource(R.drawable.fab_shadow_black);
+                break;
+        }
+
+        return floatingActionButton.addActionItem(builder.create());
+    }
+
+    private void initialiseFabConfirmSelection() {
+        fabConfirmSelection = findViewById(R.id.fabs_confirm_selection);
+        hideFabConfirmSelection();
+        if (mReturnIntent) {
+            int colorAccent = getAccent();
+            fabConfirmSelection.setMainFabClosedBackgroundColor(colorAccent);
+            fabConfirmSelection.setMainFabOpenedBackgroundColor(colorAccent);
+
+            fabConfirmSelection.setOnChangeListener(
+                    new SpeedDialView.OnChangeListener() {
+                        @Override
+                        public boolean onMainActionSelected() {
+                            if (getCurrentMainFragment() != null
+                                    && getCurrentMainFragment().getMainFragmentViewModel() != null) {
+                                ArrayList<LayoutElementParcelable> checkedItems =
+                                        getCurrentMainFragment().getMainFragmentViewModel().getCheckedItems();
+                                ArrayList<HybridFileParcelable> baseFiles = new ArrayList<>();
+                                for (LayoutElementParcelable item : checkedItems) {
+                                    baseFiles.add(item.generateBaseFile());
+                                }
+                                getCurrentMainFragment()
+                                        .returnIntentResults(baseFiles.toArray(new HybridFileParcelable[0]));
+                            }
+                            return false;
+                        }
+
+                        @Override
+                        public void onToggleChanged(boolean isOpen) {
+                        }
+                    });
+        }
+    }
+
+    /**
+     * If a intent should be returned, shows the floating action button which confirms the selection
+     */
+    public void showFabConfirmSelection() {
+        if (mReturnIntent) {
+            showFab(fabConfirmSelection);
+        }
+    }
+
+    /**
+     * Hides the floating action button which confirms the selection
+     */
+    public void hideFabConfirmSelection() {
+        hideFab(fabConfirmSelection);
+    }
+
+    public void renameBookmark(final String title, final String path) {
+        if (dataUtils.containsBooks(new String[]{title, path}) != -1) {
+            RenameBookmark renameBookmark = RenameBookmark.getInstance(title, path, getAccent());
+            renameBookmark.show(getFragmentManager(), "renamedialog");
+        }
+    }
+
+    public void setPaste(PasteHelper p) {
+        pasteHelper = p;
+    }
+
+    public MainActivityActionMode getActionModeHelper() {
+        return this.mainActivityActionMode;
+    }
+
+    @Override
+    public void onNewIntent(Intent i) {
+        super.onNewIntent(i);
+        intent = i;
+        path = i.getStringExtra("path");
+
+        if (path != null) {
+            if (new File(path).isDirectory()) {
+                final MainFragment mainFragment = getCurrentMainFragment();
+                if (mainFragment != null) {
+                    mainFragment.loadlist(path, false, OpenMode.FILE, true);
+                } else {
+                    goToMain(path);
+                }
+            } else FileUtils.openFile(new File(path), mainActivity, getPrefs());
+        } else if (i.getStringArrayListExtra(TAG_INTENT_FILTER_FAILED_OPS) != null) {
+            ArrayList<HybridFileParcelable> failedOps =
+                    i.getParcelableArrayListExtra(TAG_INTENT_FILTER_FAILED_OPS);
+            if (failedOps != null) {
+                mainActivityHelper.showFailedOperationDialog(failedOps, this);
+            }
+        } else if (i.getCategories() != null
+                && i.getCategories().contains(CLOUD_AUTHENTICATOR_GDRIVE)) {
+            // we used an external authenticator instead of APIs. Probably for Google Drive
+            CloudRail.setAuthenticationResponse(intent);
+            if (intent.getAction() != null) {
+                checkForExternalIntent(intent);
+                invalidateFragmentAndBundle(null, false);
+            }
+        } else if ((openProcesses = i.getBooleanExtra(KEY_INTENT_PROCESS_VIEWER, false))) {
+            FragmentTransaction transaction = getSupportFragmentManager().beginTransaction();
+            transaction.replace(
+                    R.id.content_frame, new ProcessViewerFragment(), KEY_INTENT_PROCESS_VIEWER);
+            //   transaction.addToBackStack(null);
+            openProcesses = false;
+            // title.setText(utils.getString(con, R.string.process_viewer));
+            // Commit the transaction
+            transaction.commitAllowingStateLoss();
+            supportInvalidateOptionsMenu();
+        } else if (intent.getAction() != null) {
+            checkForExternalIntent(intent);
+            invalidateFragmentAndBundle(null, false);
+
+
+            if (intent.getAction().equals(UsbManager.ACTION_USB_DEVICE_DETACHED)) {
+                SingletonUsbOtg.getInstance().resetUsbOtgRoot();
+                drawer.refreshDrawer();
+            }
+        }
+    }
+
+    public void showSMBDialog(String name, String path, boolean edit) {
+        if (!path.isEmpty() && name.isEmpty()) {
+            int i = dataUtils.containsServer(new String[]{name, path});
+            if (i != -1) name = dataUtils.getServers().get(i)[0];
+        }
+        SmbConnectDialog smbConnectDialog = new SmbConnectDialog();
+        Bundle bundle = new Bundle();
+        bundle.putString(SmbConnectDialog.ARG_NAME, name);
+        bundle.putString(SmbConnectDialog.ARG_PATH, path);
+        bundle.putBoolean(SmbConnectDialog.ARG_EDIT, edit);
+        smbConnectDialog.setArguments(bundle);
+        smbConnectDialog.show(getSupportFragmentManager(), SmbConnectDialog.TAG);
+    }
+
+    @SuppressLint("CheckResult")
+    public void showSftpDialog(String name, String path, boolean edit) {
+        if (!path.isEmpty() && name.isEmpty()) {
+            int i = dataUtils.containsServer(new String[]{name, path});
+            if (i != -1) name = dataUtils.getServers().get(i)[0];
+        }
+        SftpConnectDialog sftpConnectDialog = new SftpConnectDialog();
+        sftpConnectDialog.setCancelable(false);
+        String finalName = name;
+        Flowable.fromCallable(() -> new NetCopyConnectionInfo(path))
+                .flatMap(
+                        connectionInfo -> {
+                            Bundle retval = new Bundle();
+                            retval.putString(ARG_PROTOCOL, connectionInfo.getPrefix());
+                            retval.putString(ARG_NAME, finalName);
+                            retval.putString(ARG_ADDRESS, connectionInfo.getHost());
+                            retval.putInt(ARG_PORT, connectionInfo.getPort());
+                            if (!TextUtils.isEmpty(connectionInfo.getDefaultPath())) {
+                                retval.putString(
+                                        ARG_DEFAULT_PATH,
+                                        ArraysKt.joinToString(
+                                                connectionInfo.getDefaultPath().split("/"),
+                                                "/",
+                                                "",
+                                                "",
+                                                -1,
+                                                "",
+                                                (Function1<String, String>)
+                                                        s -> GenericExtKt.urlDecoded(s, Charsets.UTF_8)
+                                        )
+                                );
+                            }
+                            if (!TextUtils.isEmpty(connectionInfo.getUsername())) {
+                                retval.putString(ARG_USERNAME, connectionInfo.getUsername());
+                            }
+
+                            if (connectionInfo.getPassword() == null) {
+                                retval.putBoolean(ARG_HAS_PASSWORD, false);
+                                if (SSH_URI_PREFIX.equals(connectionInfo.getPrefix())) {
+                                    retval.putString(ARG_KEYPAIR_NAME, utilsHandler.getSshAuthPrivateKeyName(path));
+                                }
+                            } else {
+                                retval.putBoolean(ARG_HAS_PASSWORD, true);
+                                retval.putString(ARG_PASSWORD, connectionInfo.getPassword());
+                            }
+                            retval.putBoolean(ARG_EDIT, edit);
+
+                            if ((FTP_URI_PREFIX.equals(connectionInfo.getPrefix())
+                                    || FTPS_URI_PREFIX.equals(connectionInfo.getPrefix()))
+                                    && connectionInfo.getArguments() != null
+                                    && TLS_EXPLICIT.equals(connectionInfo.getArguments().get(ARG_TLS))) {
+                                retval.putString(ARG_TLS, TLS_EXPLICIT);
+                            }
+
+                            return Flowable.just(retval);
+                        })
+                .subscribeOn(Schedulers.computation())
+                .subscribe(
+                        bundle -> {
+                            sftpConnectDialog.setArguments(bundle);
+                            sftpConnectDialog.setCancelable(true);
+                            sftpConnectDialog.show(getSupportFragmentManager(), SftpConnectDialog.TAG);
+                        });
+    }
+
+    /**
+     * Shows a view that goes from white at it's lowest part to transparent a the top. It covers the
+     * fragment.
+     */
+    public void showSmokeScreen() {
+        fabBgView.show();
+    }
+
+    public void hideSmokeScreen() {
+        fabBgView.hide();
+    }
+
+    @Override
+    @SuppressLint("CheckResult")
+    public void addConnection(
+            boolean edit,
+            @NonNull final String name,
+            @NonNull final String encryptedPath,
+            @Nullable final String oldname,
+            @Nullable final String oldPath
+    ) {
+        String[] s = new String[]{name, encryptedPath};
+        if (!edit) {
+            if ((dataUtils.containsServer(encryptedPath)) == -1) {
+                Completable.fromRunnable(
+                                () ->
+                                        utilsHandler.saveToDatabase(
+                                                new OperationData(UtilsHandler.Operation.SMB, name, encryptedPath)))
+                        .subscribeOn(Schedulers.io())
+                        .observeOn(AndroidSchedulers.mainThread())
+                        .subscribe(
+                                () -> {
+                                    dataUtils.addServer(s);
+                                    drawer.refreshDrawer();
+                                    // grid.addPath(name, encryptedPath, DataUtils.SMB, 1);
+                                    executeWithMainFragment(
+                                            mainFragment -> {
+                                                mainFragment.loadlist(encryptedPath, false, OpenMode.UNKNOWN, true);
+                                                return null;
+                                            },
+                                            true
+                                    );
+                                });
+            } else {
+                Snackbar.make(
+                                findViewById(R.id.navigation),
+                                getString(R.string.connection_exists),
+                                Snackbar.LENGTH_SHORT
+                        )
+                        .show();
+            }
+        } else {
+            int i = dataUtils.containsServer(new String[]{oldname, oldPath});
+            if (i != -1) {
+                dataUtils.removeServer(i);
+                Flowable.fromCallable(
+                                () -> {
+                                    utilsHandler.renameSMB(oldname, oldPath, name, encryptedPath);
+                                    return true;
+                                })
+                        .subscribeOn(Schedulers.io())
+                        .subscribe();
+            }
+            dataUtils.addServer(s);
+            dataUtils.getServers().sort(new BookSorter());
+            drawer.refreshDrawer();
+        }
+    }
+
+    @Override
+    @SuppressLint("CheckResult")
+    public void deleteConnection(final String name, final String path) {
+        int i = dataUtils.containsServer(new String[]{name, path});
+        if (i != -1) {
+            dataUtils.removeServer(i);
+            Completable.fromCallable(
+                            () -> {
+                                utilsHandler.removeFromDatabase(
+                                        new OperationData(UtilsHandler.Operation.SMB, name, path));
+                                return true;
+                            })
+                    .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe(() -> drawer.refreshDrawer());
+        }
+    }
+
+    @Override
+    @SuppressLint("CheckResult")
+    public void delete(String title, String path) {
+        Completable.fromCallable(
+                        () -> {
+                            utilsHandler.removeFromDatabase(
+                                    new OperationData(UtilsHandler.Operation.BOOKMARKS, title, path));
+                            return true;
+                        })
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(() -> drawer.refreshDrawer());
+    }
+
+    @Override
+    @SuppressLint("CheckResult")
+    public void modify(String oldpath, String oldname, String newPath, String newname) {
+        Completable.fromCallable(
+                        () -> {
+                            utilsHandler.renameBookmark(oldname, oldpath, newname, newPath);
+                            return true;
+                        })
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(() -> drawer.refreshDrawer());
+    }
+
+    @Override
+    public void addConnection(OpenMode service) {
+        try {
+            if (cloudHandler.findEntry(service) != null) {
+                // cloud entry already exists
+                Toast.makeText(
+                                this, getResources().getString(R.string.connection_exists), Toast.LENGTH_LONG)
+                        .show();
+            } else {
+                Toast.makeText(
+                                MainActivity.this,
+                                getResources().getString(R.string.please_wait),
+                                Toast.LENGTH_LONG
+                        )
+                        .show();
+                Bundle args = new Bundle();
+                args.putInt(ARGS_KEY_LOADER, service.ordinal());
+
+                // check if we already had done some work on the loader
+                Loader loader = getSupportLoaderManager().getLoader(REQUEST_CODE_CLOUD_LIST_KEY);
+                if (loader != null && loader.isStarted()) {
+
+                    // making sure that loader is not started
+                    getSupportLoaderManager().destroyLoader(REQUEST_CODE_CLOUD_LIST_KEY);
+                }
+
+                getSupportLoaderManager().initLoader(REQUEST_CODE_CLOUD_LIST_KEY, args, this);
+            }
+        } catch (CloudPluginException e) {
+            LOG.warn("failure when adding cloud plugin connections", e);
+            Toast.makeText(this, getResources().getString(R.string.cloud_error_plugin), Toast.LENGTH_LONG)
+                    .show();
+        }
+    }
+
+    @Override
+    public void deleteConnection(OpenMode service) {
+        cloudHandler.clear(service);
+        dataUtils.removeAccount(service);
+
+        runOnUiThread(drawer::refreshDrawer);
+    }
+
+    @NonNull
+    @Override
+    public Loader<Cursor> onCreateLoader(int id, Bundle args) {
+        Uri uri =
+                Uri.withAppendedPath(
+                        Uri.parse("content://" + CloudContract.PROVIDER_AUTHORITY), "/keys.db/secret_keys");
+
+        String[] projection =
+                new String[]{
+                        CloudContract.COLUMN_ID,
+                        CloudContract.COLUMN_CLIENT_ID,
+                        CloudContract.COLUMN_CLIENT_SECRET_KEY
+                };
+
+        switch (id) {
+            case REQUEST_CODE_CLOUD_LIST_KEY:
+                Uri uriAppendedPath = uri;
+                switch (OpenMode.getOpenMode(args.getInt(ARGS_KEY_LOADER, 2))) {
+                    case GDRIVE:
+                        uriAppendedPath = ContentUris.withAppendedId(uri, 2);
+                        break;
+                    case DROPBOX:
+                        uriAppendedPath = ContentUris.withAppendedId(uri, 3);
+                        break;
+                    case BOX:
+                        uriAppendedPath = ContentUris.withAppendedId(uri, 4);
+                        break;
+                    case ONEDRIVE:
+                        uriAppendedPath = ContentUris.withAppendedId(uri, 5);
+                        break;
+                }
+                return new CursorLoader(this, uriAppendedPath, projection, null, null, null);
+            case REQUEST_CODE_CLOUD_LIST_KEYS:
+                // we need a list of all secret keys
+
+                try {
+                    List<CloudEntry> cloudEntries = cloudHandler.getAllEntries();
+
+                    // we want keys for services saved in database, and the cloudrail app key which
+                    // is at index 1
+                    String[] ids = new String[cloudEntries.size() + 1];
+
+                    ids[0] = 1 + "";
+                    for (int i = 1; i <= cloudEntries.size(); i++) {
+
+                        // we need to get only those cloud details which user wants
+                        switch (cloudEntries.get(i - 1).getServiceType()) {
+                            case GDRIVE:
+                                ids[i] = 2 + "";
+                                break;
+                            case DROPBOX:
+                                ids[i] = 3 + "";
+                                break;
+                            case BOX:
+                                ids[i] = 4 + "";
+                                break;
+                            case ONEDRIVE:
+                                ids[i] = 5 + "";
+                                break;
+                        }
+                    }
+                    return new CursorLoader(this, uri, projection, CloudContract.COLUMN_ID, ids, null);
+                } catch (CloudPluginException e) {
+                    LOG.warn("failure when fetching cloud connections", e);
+                    Toast.makeText(
+                                    this, getResources().getString(R.string.cloud_error_plugin), Toast.LENGTH_LONG)
+                            .show();
+                }
+            default:
+                Uri undefinedUriAppendedPath = ContentUris.withAppendedId(uri, 7);
+                return new CursorLoader(this, undefinedUriAppendedPath, projection, null, null, null);
+        }
+    }
+
+    @Override
+    public void onLoadFinished(@NonNull Loader<Cursor> loader, final Cursor data) {
+        if (data == null) {
+            Toast.makeText(
+                            this,
+                            getResources().getString(R.string.cloud_error_failed_restart),
+                            Toast.LENGTH_LONG
+                    )
+                    .show();
+            return;
+        }
+
+        /*
+         * This is hack for repeated calls to onLoadFinished(),
+         * we take the Cursor provided to check if the function
+         * has already been called on it.
+         *
+         * TODO: find a fix for repeated callbacks to onLoadFinished()
+         */
+        if (cloudCursorData == null
+                || cloudCursorData == data
+                || data.isClosed()
+                || cloudCursorData.isClosed()) return;
+        cloudCursorData = data;
+
+        if (cloudLoaderAsyncTask != null
+                && cloudLoaderAsyncTask.getStatus() == AsyncTask.Status.RUNNING) {
+            return;
+        }
+        cloudLoaderAsyncTask = new CloudLoaderAsyncTask(this, cloudHandler, cloudCursorData);
+        cloudLoaderAsyncTask.execute();
+    }
+
+    @Override
+    public void onLoaderReset(Loader<Cursor> loader) {
+        // For passing code check
+    }
+
+    public void initCornersDragListener(boolean destroy, boolean shouldInvokeLeftAndRight) {
+        initBottomDragListener(destroy);
+        initLeftRightAndTopDragListeners(destroy, shouldInvokeLeftAndRight);
+    }
+
+    private void initBottomDragListener(boolean destroy) {
+        View bottomPlaceholder = findViewById(R.id.placeholder_drag_bottom);
+        if (destroy) {
+            bottomPlaceholder.setOnDragListener(null);
+            bottomPlaceholder.setVisibility(View.GONE);
+        } else {
+            bottomPlaceholder.setVisibility(View.VISIBLE);
+            bottomPlaceholder.setOnDragListener(
+                    new TabFragmentBottomDragListener(
+                            () -> {
+                                getCurrentMainFragment().smoothScrollListView(false);
+                                return null;
+                            },
+                            () -> {
+                                getCurrentMainFragment().stopSmoothScrollListView();
+                                return null;
+                            }
+                    ));
+        }
+    }
+
+    private void initLeftRightAndTopDragListeners(boolean destroy, boolean shouldInvokeLeftAndRight) {
+        TabFragment tabFragment = getTabFragment();
+        tabFragment.initLeftRightAndTopDragListeners(destroy, shouldInvokeLeftAndRight);
+    }
+
+    /**
+     * Invoke {@link FtpServerFragment#changeFTPServerPath(String)} to change FTP server share path.
+     *
+     * @param folder selected folder
+     * @see FtpServerFragment#changeFTPServerPath(String)
+     * @see FolderChooserDialog
+     * @see com.afollestad.materialdialogs.folderselector.FolderChooserDialog.FolderCallback
+     */
+    @Override
+    public void onFolderSelection(@NonNull FolderChooserDialog dialog, @NonNull File folder) {
+        if (dialog.getTag().equals(FtpServerFragment.TAG)) {
+            FtpServerFragment ftpServerFragment = (FtpServerFragment) getFragmentAtFrame();
+            if (folder.exists() && folder.isDirectory()) {
+                if (FileUtils.isRunningAboveStorage(folder.getAbsolutePath())) {
+                    if (!isRootExplorer()) {
+                        com.amaze.filemanager.ui.dialogs.AlertDialog.show(
+                                this,
+                                com.amaze.filemanager.R.string.ftp_server_root_unavailable,
+                                com.amaze.filemanager.R.string.error,
+                                android.R.string.ok,
+                                null,
+                                false
+                        );
+                    } else {
+                        MaterialDialog confirmDialog =
+                                com.amaze.filemanager.ui.dialogs.GeneralDialogCreation.showBasicDialog(
+                                        this,
+                                        com.amaze.filemanager.R.string.ftp_server_root_filesystem_warning,
+                                        com.amaze.filemanager.R.string.warning,
+                                        android.R.string.ok,
+                                        android.R.string.cancel
+                                );
+                        confirmDialog
+                                .getActionButton(DialogAction.POSITIVE)
+                                .setOnClickListener(
+                                        v -> {
+                                            ftpServerFragment.changeFTPServerPath(folder.getPath());
+                                            android.widget.Toast.makeText(this, R.string.ftp_path_change_success, android.widget.Toast.LENGTH_SHORT)
+                                                    .show();
+                                            confirmDialog.dismiss();
+                                        });
+                        confirmDialog
+                                .getActionButton(DialogAction.NEGATIVE)
+                                .setOnClickListener(v -> confirmDialog.dismiss());
+                        confirmDialog.show();
+                    }
+                } else {
+                    ftpServerFragment.changeFTPServerPath(folder.getPath());
+                    android.widget.Toast.makeText(this, R.string.ftp_path_change_success, android.widget.Toast.LENGTH_SHORT).show();
+                }
+            } else {
+                // try to get parent
+                String pathParentFilePath = folder.getParent();
+                if (pathParentFilePath == null) {
+                    dialog.dismiss();
+                    return;
+                }
+                java.io.File pathParentFile = new java.io.File(pathParentFilePath);
+                if (pathParentFile.exists() && pathParentFile.isDirectory()) {
+                    ftpServerFragment.changeFTPServerPath(pathParentFile.getPath());
+                    android.widget.Toast.makeText(this, com.amaze.filemanager.R.string.ftp_path_change_success, android.widget.Toast.LENGTH_SHORT).show();
+                } else {
+                    // don't have access, print error
+                    android.widget.Toast.makeText(this, com.amaze.filemanager.R.string.ftp_path_change_error_invalid, android.widget.Toast.LENGTH_SHORT).show();
+                }
+            }
+            dialog.dismiss();
+        } else {
+            dialog.dismiss();
+        }
+    }
+
+    /**
+     * Get whether list item is selected for action mode or not
+     *
+     * @return value
+     */
+    public boolean getListItemSelected() {
+        return this.listItemSelected;
+    }
+
+    /**
+     * Set list item selected value
+     *
+     * @param value value
+     */
+    public void setListItemSelected(boolean value) {
+        this.listItemSelected = value;
+    }
+
+    public String getScrollToFileName() {
+        return this.scrollToFileName;
+    }
+
+    /**
+     * Do nothing other than dismissing the folder selection dialog.
+     *
+     * @see com.afollestad.materialdialogs.folderselector.FolderChooserDialog.FolderCallback
+     */
+    @Override
+    public void onFolderChooserDismissed(@NonNull FolderChooserDialog dialog) {
+        dialog.dismiss();
+    }
+
+    private void executeWithMainFragment(@NonNull Function<MainFragment, Void> lambda) {
+        executeWithMainFragment(lambda, false);
+    }
+
+    @Nullable
+    private void executeWithMainFragment(
+            @NonNull Function<MainFragment, Void> lambda, boolean showToastIfMainFragmentIsNull
+    ) {
+        final MainFragment mainFragment = getCurrentMainFragment();
+        if (mainFragment != null && mainFragment.getMainFragmentViewModel() != null) {
+            lambda.apply(mainFragment);
+        } else {
+            LOG.warn("MainFragment is null");
+            if (showToastIfMainFragmentIsNull) {
+                com.amaze.filemanager.application.AmazeFileManagerApplication.toast(this, R.string.operation_unsuccesful);
+            }
+        }
+    }
+}
