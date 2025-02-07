@@ -38,8 +38,7 @@ public class PreferenceActivity extends BasicActivity {
 
     @Override
     public void onCreate(final Bundle savedInstanceState) {
-        // Fragments are created before the super call returns, so we must
-        // initialize sharedPrefs before the super call otherwise it cannot be used by fragments
+        // Fragments are created before the super call returns, so we must initialize sharedPrefs before the super call. Otherwise, it cannot be used by fragments.
         sharedPrefs = PreferenceManager.getDefaultSharedPreferences(this);
 
         super.onCreate(savedInstanceState);
@@ -59,7 +58,7 @@ public class PreferenceActivity extends BasicActivity {
                 .getInt(PreferencesConstants.PREFERENCE_CURRENT_TAB, PreferenceUtils.DEFAULT_CURRENT_TAB);
     }
 
-    public boolean getBoolean(String key) {
+    public boolean getBoolean(@NonNull String key) {
         boolean defaultValue;
 
         switch (key) {
